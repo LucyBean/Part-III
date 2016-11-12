@@ -19,8 +19,10 @@ for r in textbook_model.reactions:
     for m in r.metabolites:
         incidence[r.id,m.id] = r.get_coefficient(m)
         
-reactionsToInclude = ["GLUDy"]
-reactionsToExclude = []
+reactionsToInclude = ["SUCDi"]
+reactionsToExclude = ["FRD7"]
+ignoredMetabolites = ["adp_c", "atp_c", "coa_c", "h2o_c", "h_c", "h_e",
+                      "nad_c", "nadh_c", "nadp_c", "nadph_c", "pep_c"]
     
     
 ### Make gurobi model
@@ -37,10 +39,12 @@ for r in reactions:
 # Cx = 0
 cs = {}
 for m in metabolites:
-    cs[m.id] = LinExpr()
+    if m.id not in ignoredMetabolites:
+        cs[m.id] = LinExpr()
 for (e,m) in incidence:
-    ratio = incidence[e,m]
-    cs[m] += ratio * coeffs[e]
+    if m not in ignoredMetabolites:
+        ratio = incidence[e,m]
+        cs[m] += ratio * coeffs[e]
 for c in cs:
     model.addConstr(cs[c] == 0)
     
@@ -52,12 +56,13 @@ for r in reactionsToExclude:
         
 model.optimize()
 
-flux = {}
-for c in coeffs:
-    v = coeffs[c].x
-    if v != 0:
-        flux[c] = v
-        print c,v
-
-with open("out.json", "w") as f:
-    json.dump(flux, f)
+if model.status == GRB.OPTIMAL:
+    flux = {}
+    for c in coeffs:
+        v = coeffs[c].x
+        if v != 0:
+            flux[c] = v
+            print c,v
+    
+    with open("reactions.json", "w") as f:
+        json.dump(flux, f)
