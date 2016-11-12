@@ -1,4 +1,4 @@
-from gurobipy import *
+from gurobipy import Model, GRB, GurobiError
 
 try:
 
