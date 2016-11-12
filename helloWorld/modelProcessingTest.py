@@ -55,8 +55,9 @@ model.optimize()
 flux = {}
 for c in coeffs:
     v = coeffs[c].x
-    if v > 0:
+    if v != 0:
         flux[c] = v
+        print c,v
 
 with open("out.json", "w") as f:
     json.dump(flux, f)
