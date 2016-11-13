@@ -8,11 +8,12 @@ import cobra.test
 
 if __name__ == '__main__':
     model = cobra.test.create_test_model("textbook")
-    include = ["SUCDi"]
-    exclude = ["FRD7"]
+    include = ["FRUpts2"]
+    exclude = []
     ignore = ["adp_c", "atp_c", "coa_c", "h2o_c", "h_c", "h_e",
                           "nad_c", "nadh_c", "nadp_c", "nadph_c", "pep_c"]
     
-    fluxes = models.process(model, include, exclude, ignore)
+    fluxes = models.process(model, include, exclude)
     
-    models.display("e_coli_core.Core metabolism", fluxes)
+    if fluxes is not None:
+        models.display("e_coli_core.Core metabolism", fluxes)
