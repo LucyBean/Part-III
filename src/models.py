@@ -3,8 +3,12 @@ Created on Nov 12, 2016
 
 @author: Lucy
 '''
-from gurobipy import Model, LinExpr, GRB
+from gurobipy import Model, LinExpr, GRB, tupledict
 import escher
+import sys
+
+FORWARD = True
+REVERSE = False
 
 def process(model,
                  reactionsToInclude=[],
@@ -15,7 +19,8 @@ def process(model,
     
     model: A COBRA model to be used.
     reactionsToExclude: A list of reactions whose fluxes should be zero.
-    reactionsToInclude: A list of reactions whose fluxes should be >= 1.
+    reactionsToInclude: A dict containing reaction/direction pairs. Direction should be
+        set to either models.FORWARD or models.BACKWARD
     ignoredMetabolites: Metabolites which are ignored when finding a solution.    
     """
     
@@ -29,14 +34,18 @@ def process(model,
             
     # ## Make gurobi model
     model = Model("textbook")
-    coeffs = model.addVars([r.id for r in reactions])
+    forwardCoeffs = model.addVars([r.id for r in reactions])
+    reverseCoeffs = tupledict()
     
     
     # ## Constraints
     # Allow reversible reactions to have negative coefficients
+    # This is done by adding a coefficient for the reverse reaction
+    #  and using a SOS to ensure that one is zero
     for r in reactions:
         if r.reversibility:
-            coeffs[r.id].lb = -GRB.INFINITY
+            reverseCoeffs[r.id] = model.addVar(name=r.id)
+            model.addSOS(GRB.SOS_TYPE1, [forwardCoeffs[r.id], reverseCoeffs[r.id]])
     # Cx = 0
     cs = {}
     for m in metabolites:
@@ -45,26 +54,54 @@ def process(model,
     for (e, m) in incidence:
         if m not in ignoredMetabolites:
             ratio = incidence[e, m]
-            cs[m] += ratio * coeffs[e]
+            cs[m] += ratio * forwardCoeffs[e]
+            if reactions.get_by_id(e).reversibility:
+                cs[m] += -ratio * reverseCoeffs[e]
     for c in cs:
         model.addConstr(cs[c] == 0)
-    # Include and exclude reactions
+    # Include reactions
     for r in reactionsToInclude:
-        model.addConstr(coeffs[r] >= 1)
+        # Check if the reaction name is valid
+        if r in [a.id for a in reactions]:
+            direction = reactionsToInclude[r]
+            if direction == FORWARD:
+                model.addConstr(forwardCoeffs[r] >= 1)
+            # If adding a reverse, check the reaction is reversible
+            elif reactions.get_by_id(r).reversibility:
+                model.addConstr(reverseCoeffs[r] >= 1)
+            else:
+                sys.stderr.write("Attempting to force reverse for irreversible reaction " + r + "\n")
+        else:
+            sys.stderr.write("Attempting to include unknown reaction:" + r + "\n")
+    # Exclude reactions
     for r in reactionsToExclude:
-        model.addConstr(coeffs[r] == 0)
+        if r in [a.id for a in reactions]:
+            model.addConstr(forwardCoeffs[r] == 0)
+            if reactions.get_by_id(r).reversibility:
+                model.addConstr(reverseCoeffs[r] == 0)
+        else:
+            sys.stderr.write("Attempting to exclude unknown reaction:" + r + "\n")
         
     ### Set objective function
-    model.setObjective(coeffs.sum(), GRB.MINIMIZE)
+    model.setObjective(forwardCoeffs.sum() + reverseCoeffs.sum(), GRB.MINIMIZE)
             
     model.optimize()
     
+    
     if model.status == GRB.OPTIMAL:
         flux = {}
-        for c in coeffs:
-            v = coeffs[c].x
-            if v != 0:
+        for c in forwardCoeffs:
+            v = forwardCoeffs[c].x
+            if v > 0.01:
                 flux[c] = v
+        for c in reverseCoeffs:
+            v = reverseCoeffs[c].x
+            if v > 0.01:
+                if c in flux.keys():
+                    print forwardCoeffs
+                    print reverseCoeffs
+                    raise BaseException("Forward and reverse for " + c  + " used in solution.")
+                flux[c] = -v
         
         return flux
     
