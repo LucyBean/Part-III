@@ -53,6 +53,9 @@ def process(model,
         model.addConstr(coeffs[r] >= 1)
     for r in reactionsToExclude:
         model.addConstr(coeffs[r] == 0)
+        
+    ### Set objective function
+    model.setObjective(coeffs.sum(), GRB.MINIMIZE)
             
     model.optimize()
     
@@ -66,8 +69,8 @@ def process(model,
         return flux
     
 
-def display(map_name, reaction_data=[]):
-    b = escher.Builder(map_name=map_name,
+def display(map_name=None, map_json=None, reaction_data=[]):
+    b = escher.Builder(map_name=map_name, map_json=map_json,
                        reaction_data=reaction_data,
                        # color and size according to the absolute value
                    reaction_styles=['color', 'size', 'abs', 'text'],
