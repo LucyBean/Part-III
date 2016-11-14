@@ -35,6 +35,7 @@ coeffs = model.addVars(reactions)
 # Allow reversible reactions to have negative co-efficients
 for r in revReactions:
     coeffs[r].lb = -GRB.INFINITY
+    # This does not work, see updated "models.py" in src
     
 # Cx = 0
 cs = {}

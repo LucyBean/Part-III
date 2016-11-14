@@ -98,8 +98,6 @@ def process(model,
             v = reverseCoeffs[c].x
             if v > 0.01:
                 if c in flux.keys():
-                    print forwardCoeffs
-                    print reverseCoeffs
                     raise BaseException("Forward and reverse for " + c  + " used in solution.")
                 flux[c] = -v
         
