@@ -8,7 +8,7 @@ import cobra.test
 
 if __name__ == '__main__':
     model = cobra.test.create_test_model("textbook")
-    include = ["FRUpts2"]
+    include = {"FRUpts2":models.FORWARD}
     exclude = []
     ignore = ["adp_c", "atp_c", "coa_c", "h2o_c", "h_c", "h_e",
                           "nad_c", "nadh_c", "nadp_c", "nadph_c", "pep_c"]

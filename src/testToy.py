@@ -52,5 +52,4 @@ def emfG():
     test(include, exclude)
 
 if __name__ == '__main__':
-    emfG()
-    
+    emfB()
