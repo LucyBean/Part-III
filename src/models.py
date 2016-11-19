@@ -4,64 +4,68 @@ Created on Nov 12, 2016
 @author: Lucy
 '''
 from gurobipy import Model, LinExpr, GRB, tupledict
+from incidence import IncidenceMatrix
 import escher
 import sys
 
 FORWARD = True
 REVERSE = False
 
-
-def findEFM(cobraModel,
-                 reactionsToInclude=[],
-                 reactionsToExclude=[],
-                 externalMetabolites=[]):
-    """Process a gurobiModel, producing a dictionary containing all included reactions
-    and their fluxes. Uses an objective function that minimises the sum of the
-    fluxes.
+def addSteadyStateConstraints(gurobiModel, incidence, externalMetabolites,
+                              forwardCoeffs, reverseCoeffs):
+    """Adds constraints corresponding to the steady state constraint Cx=0
     
-    gurobiModel: A COBRA gurobiModel to be used.
-    reactionsToExclude: A list of reactions whose fluxes should be zero.
-    reactionsToInclude: A dict containing reaction/direction pairs. Direction should be
-        set to either models.FORWARD or models.BACKWARD
-    externalMetabolites: Metabolites which are ignored when finding a solution.    
+    gurobiModel: The Gurobi model to which the constraints to will be added
+    incidence: an IncidenceMatrix object
+    externalMetabolites: the metabolites to ignore in steadys tate
+    forwardCoeffs: list of Gurobi vars corresponding to the coefficients of the forward reactions
+    reverseCoeffs: list of Gurobi vars corresponding to the coefficients of the reverse reactions
     """
+    # Cx = 0
+    cs = {}
+    for m in incidence.metabolites:
+        if m.id not in externalMetabolites:
+            cs[m.id] = LinExpr()
+    for (e, m) in incidence.matrix:
+        if m not in externalMetabolites:
+            ratio = incidence.matrix[e, m]
+            cs[m] += ratio * forwardCoeffs[e]
+            if incidence.reactions.get_by_id(e).reversibility:
+                cs[m] += -ratio * reverseCoeffs[e]
+                
+    for c in cs:
+        gurobiModel.addConstr(cs[c] == 0)
+        
+def addReversibilityConstraints(gurobiModel, incidence, forwardCoeffs, reverseCoeffs):
+    """Add constraints corresponding to reversibility
     
-    # ## Extract the needed data from the cobra model
-    metabolites = cobraModel.metabolites
-    reactions = cobraModel.reactions
-    incidence = {}
-    for r in reactions:
-        for m in r.metabolites:
-            incidence[r.id, m.id] = r.get_coefficient(m)
-            
-    # ## Make gurobi model
-    gurobiModel = Model(cobraModel.id)
-    forwardCoeffs = gurobiModel.addVars([r.id for r in reactions])
-    reverseCoeffs = tupledict()
-    
-    
-    # ## Constraints
+    gurobiModel: The Gurobi model to which the constraints to will be added
+    incidence: an IncidenceMatrix object
+    forwardCoeffs: list of Gurobi vars corresponding to the coefficients of the forward reactions
+    reverseCoeffs: list of Gurobi vars corresponding to the coefficients of the reverse reactions
+    """
     # Allow reversible reactions to have negative coefficients
     # This is done by adding a coefficient for the reverse reaction
     #  and using a SOS to ensure that one is zero
-    for r in reactions:
+    for r in incidence.reactions:
         if r.reversibility:
             reverseCoeffs[r.id] = gurobiModel.addVar(name=r.id)
             gurobiModel.addSOS(GRB.SOS_TYPE1, [forwardCoeffs[r.id], reverseCoeffs[r.id]])
-    # Cx = 0
-    cs = {}
-    for m in metabolites:
-        if m.id not in externalMetabolites:
-            cs[m.id] = LinExpr()
-    for (e, m) in incidence:
-        if m not in externalMetabolites:
-            ratio = incidence[e, m]
-            cs[m] += ratio * forwardCoeffs[e]
-            if reactions.get_by_id(e).reversibility:
-                cs[m] += -ratio * reverseCoeffs[e]
-    for c in cs:
-        gurobiModel.addConstr(cs[c] == 0)
+            
+def addIncludedExcludedReactionConstraints(gurobiModel, incidence, reactionsToInclude,
+                                           reactionsToExclude, forwardCoeffs, reverseCoeffs):
+    """Add constraints corresponding to included and excluded reactions
+    
+    gurobiModel: The Gurobi model to which the constraints to will be added
+    incidence: an IncidenceMatrix object
+    reactionsToInclude: dict of reaction IDs and directions, indicating flux should be > 1 or < -1
+            in the solution
+    reactionsToExclude: list of reaction IDs for which flux = 0 in the solution
+    forwardCoeffs: list of Gurobi vars corresponding to the coefficients of the forward reactions
+    reverseCoeffs: list of Gurobi vars corresponding to the coefficients of the reverse reactions    
+    """
     # Include reactions
+    reactions = incidence.reactions
     for r in reactionsToInclude:
         # Check if the reaction name is valid
         if r in [a.id for a in reactions]:
@@ -83,10 +87,50 @@ def findEFM(cobraModel,
                 gurobiModel.addConstr(reverseCoeffs[r] == 0)
         else:
             sys.stderr.write("Attempting to exclude unknown reaction:" + r + "\n")
+
+def makeGurobiModel(cobraModel, incidence, externalMetabolites, reactionsToInclude, reactionsToExclude):
+    gurobiModel = Model(cobraModel.id)
+    forwardCoeffs = gurobiModel.addVars([r.id for r in incidence.reactions])
+    reverseCoeffs = tupledict()
+    
+    # ## Constraints
+    # Reversibility
+    addReversibilityConstraints(gurobiModel, incidence, forwardCoeffs, reverseCoeffs)
+    # Cx = 0
+    addSteadyStateConstraints(gurobiModel, incidence, externalMetabolites,
+                              forwardCoeffs, reverseCoeffs)
+    # Include and exclude reactions
+    addIncludedExcludedReactionConstraints(gurobiModel, incidence, reactionsToInclude,
+                                           reactionsToExclude, forwardCoeffs, reverseCoeffs)
         
     # ## Set objective function
     # Minimise sum of fluxes
     gurobiModel.setObjective(forwardCoeffs.sum() + reverseCoeffs.sum(), GRB.MINIMIZE)
+    
+    return (gurobiModel, forwardCoeffs, reverseCoeffs)
+
+def findEFM(cobraModel,
+                 reactionsToInclude=[],
+                 reactionsToExclude=[],
+                 externalMetabolites=[]):
+    """Process a gurobiModel, producing a dictionary containing all included reactions
+    and their fluxes. Uses an objective function that minimises the sum of the
+    fluxes.
+    
+    gurobiModel: A COBRA gurobiModel to be used.
+    reactionsToExclude: A list of reactions whose fluxes should be zero.
+    reactionsToInclude: A dict containing reaction/direction pairs. Direction should be
+        set to either models.FORWARD or models.BACKWARD
+    externalMetabolites: Metabolites which are ignored when finding a solution.    
+    """
+    
+    # ## Extract the needed data from the cobra model
+    incidence = IncidenceMatrix(cobraModel.reactions)
+            
+    (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, incidence,
+                                                              externalMetabolites,
+                                                              reactionsToInclude,
+                                                              reactionsToExclude)
             
     gurobiModel.optimize()
     

@@ -129,11 +129,25 @@ def extractReactantsAndProducts(flux, reactions):
             
     return (reactants,products)
 
-def main():
+def findTerminalReactantsAndProducts(possibleTerminals, flux, reactions):
+    (reactants,products) = extractReactantsAndProducts(flux, reactions)
+    
+        # extract the metabolites that are only produced or consumed
+    # use sets to prevent extra work when handling duplicates
+    onlyProduced = set([m for m in products if m not in reactants])
+    onlyConsumed = set([m for m in reactants if m not in products])
+    
+    terminalReactants = [m for m in onlyConsumed if m in possibleTerminals]
+    terminalProducts =  [m for m in onlyProduced if m in possibleTerminals]
+    
+    return (terminalReactants, terminalProducts)
+
+if __name__ == '__main__':
     cobraModel = cobra.io.load_json_model("toyModel.json")
     reactionsToInclude = {"Pgi": FORWARD, "Pyk": FORWARD}
     reactionsToExclude = ["Prs_DeoB", "Zwf"]
     externalMetabolites = ["NADP", "NADPH", "CO2", "G6P", "R5Pex", "ATP", "ADP", "Pyr", "NAD", "NADH"]
+    possibleTerminals = ["G6P", "R5Pex", "Pyr"]
     
     """Process a gurobiModel, producing a dictionary containing all included reactions
     and their fluxes. Uses an objective function that minimises the sum of the
@@ -147,9 +161,8 @@ def main():
     """
     
     # ## Extract the needed data from the cobra model
-    metabolites = cobraModel.metabolites
     reactions = cobraModel.reactions
-    incidence = IncidenceMatrix(reactions, metabolites)
+    incidence = IncidenceMatrix(reactions)
             
     (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, incidence,
                                                               externalMetabolites, reactionsToInclude,
@@ -173,7 +186,8 @@ def main():
         
         print flux
 
-    (reactants,products) = extractReactantsAndProducts(flux, reactions)
+    (terminalReactants, terminalProducts) = findTerminalReactantsAndProducts(possibleTerminals,
+                                                                             flux, reactions)
 
-if __name__ == '__main__':
-    main()
+    print "Products:", terminalProducts
+    print "Reactants:", terminalReactants
