@@ -10,6 +10,7 @@ import sys
 FORWARD = True
 REVERSE = False
 
+
 def findEFM(cobraModel,
                  reactionsToInclude=[],
                  reactionsToExclude=[],

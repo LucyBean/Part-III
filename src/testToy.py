@@ -63,4 +63,4 @@ def ru5p_semi():
     testPsemi(include)
 
 if __name__ == '__main__':
-    ru5p_semi()
+    emfB()
