@@ -4,7 +4,9 @@ Created on Nov 15, 2016
 @author: Lucy
 '''
 
-
+# hack hack hack
+if "products" not in locals():
+    execfile("tempTestScript.py")
 
 # extract the metabolites that are only produced or consumed
 # use sets to prevent extra work when handling duplicates
