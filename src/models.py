@@ -88,7 +88,14 @@ def addIncludedExcludedReactionConstraints(gurobiModel, incidence, reactionsToIn
         else:
             sys.stderr.write("Attempting to exclude unknown reaction:" + r + "\n")
 
-def makeGurobiModel(cobraModel, incidence, externalMetabolites, reactionsToInclude, reactionsToExclude):
+def makeGurobiModel(cobraModel, externalMetabolites, reactionsToInclude, reactionsToExclude):
+    """Makes a Gurobi model from the given Cobra model, ready to be optimized.
+    The objective function used will minimise the the sum of absolute flux
+    through the reactions.    
+    """
+    # ## Extract the needed data from the cobra model
+    incidence = IncidenceMatrix(cobraModel.reactions)
+    
     gurobiModel = Model(cobraModel.id)
     forwardCoeffs = gurobiModel.addVars([r.id for r in incidence.reactions])
     reverseCoeffs = tupledict()
@@ -106,8 +113,33 @@ def makeGurobiModel(cobraModel, incidence, externalMetabolites, reactionsToInclu
     # ## Set objective function
     # Minimise sum of fluxes
     gurobiModel.setObjective(forwardCoeffs.sum() + reverseCoeffs.sum(), GRB.MINIMIZE)
-    
     return (gurobiModel, forwardCoeffs, reverseCoeffs)
+
+def findTerminalReactantsAndProducts(possibleTerminals, flux, reactions):
+    """Find the metabolites that are at the start and end of this pathway."""
+    reactants = []
+    products = []
+    
+    for f in flux:
+        reaction = reactions.get_by_id(f)
+        rf = reaction.reactants
+        pf = reaction.products
+        if flux[f] > 0:
+            reactants += [r.id for r in rf]
+            products += [p.id for p in pf]
+        else:
+            reactants += [p.id for p in pf]
+            products += [r.id for r in rf]
+    
+        # extract the metabolites that are only produced or consumed
+    # use sets to prevent extra work when handling duplicates
+    onlyProduced = set([m for m in products if m not in reactants])
+    onlyConsumed = set([m for m in reactants if m not in products])
+    
+    terminalReactants = [m for m in onlyConsumed if m in possibleTerminals]
+    terminalProducts =  [m for m in onlyProduced if m in possibleTerminals]
+    
+    return (terminalReactants, terminalProducts)
 
 def findEFM(cobraModel,
                  reactionsToInclude=[],
@@ -123,11 +155,8 @@ def findEFM(cobraModel,
         set to either models.FORWARD or models.BACKWARD
     externalMetabolites: Metabolites which are ignored when finding a solution.    
     """
-    
-    # ## Extract the needed data from the cobra model
-    incidence = IncidenceMatrix(cobraModel.reactions)
             
-    (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, incidence,
+    (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, 
                                                               externalMetabolites,
                                                               reactionsToInclude,
                                                               reactionsToExclude)
@@ -158,7 +187,7 @@ def findEFM_alt_obj(cobraModel,
     and their fluxes. Uses an objective function that minimises the sum of the
     fluxes.
     
-    gurobiModel: A COBRA gurobiModel to be used.
+    cobraModel: A cobra model from in which an EFM should be found.
     reactionsToExclude: A list of reactions whose fluxes should be zero.
     reactionsToInclude: A dict containing reaction/direction pairs. Direction should be
         set to either models.FORWARD or models.BACKWARD
