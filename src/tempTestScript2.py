@@ -3,52 +3,44 @@ Created on Nov 15, 2016
 
 @author: Lucy
 '''
-reactants = []
-products = []
 
-# Extract reactants and products from reactions
-for f in flux:
-    reaction = reactions.get_by_id(f)
-    rf = reaction.reactants
-    pf = reaction.products
-    if flux[f] > 0:
-        reactants += [r.id for r in rf]
-        products += [p.id for p in pf]
-    else:
-        reactants += [p.id for p in pf]
-        products += [r.id for r in rf]
-    
+
+
 # extract the metabolites that are only produced or consumed
 # use sets to prevent extra work when handling duplicates
-onlyProduced = set([m for m in reactants if m not in products])
-onlyConsumed = set([m for m in products if m not in reactants])
+onlyProduced = set([m for m in products if m not in reactants])
+onlyConsumed = set([m for m in reactants if m not in products])
 
+terminalReactants = []
 # find the reaction(s?) that consumed them
-for m in products:
+for m in onlyConsumed:
     metabolite = metabolites.get_by_id(m)
     # Find the reaction(s?) that include this metabolite
     myReactions = [r.id for r in list(metabolite.reactions) if r.id in flux]
     # Find those reactions by which this metabolite is consumed
     # This will be all forward reactions for which this metabolite is a reactant
-    # Or all revere reactions for which this metabolite is a product
-    myConsumers = []
-    for mr in myReactions:
-        f = flux[mr]
-        mrs = reactions.get_by_id(mr)
-        # If this is included as a forward reaction
+    # Or all reverse reactions for which this metabolite is a product
+    print m, myReactions
+    
+    for mrid in myReactions:
+        f = flux[mrid]
+        mrr = reactions.get_by_id(mrid)
+        # Need to find whether this reactant is the ONLY reactant, in which case
+        #  it is definitely a terminal reactant
+        # Get the list of reactants for the reaction. This depends on the direction
+        #  of the reaction, which is determined from the flux vector.
+        rs = []
         if f > 0:
-            # Find the IDs of all reactants
-            rs = [r.id for r in mrs.reactants]
-            # And include it if this metabolite is included
-            if m in rs:
-                myConsumers.append(mr)
-        # If this is included as a reverse reaction
+            # For a forward reaction, reactants are as expected
+            rs = [r.id for r in mrr.reactants]
         elif f < 0:
-            # Find the IDs of all products
-            rs = [r.id for r in mrs.products]
-            # And include it if this metabolite is included
-            if m in rs:
-                myConsumers.append(mr)
+            # For a backwards reaction, the reactants are the reaction's products
+            rs = [r.id for r in mrr.products]
         
-            
-    print metabolite, myConsumers
+        # If this is the only reactant then it must be a terminal reactant
+        if len(rs) == 1:
+            terminalReactants += [m]
+        
+print terminalReactants
+        
+    
