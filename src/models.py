@@ -116,7 +116,14 @@ def makeGurobiModel(cobraModel, externalMetabolites, reactionsToInclude, reactio
     return (gurobiModel, forwardCoeffs, reverseCoeffs)
 
 def findTerminalReactantsAndProducts(possibleTerminals, flux, reactions):
-    """Find the metabolites that are at the start and end of this pathway."""
+    """Find the metabolites that are at the start and end of this pathway.
+    
+    possibleTerminals: A list of the IDs of all metabolites that could be terminals.
+    flux: A dict of fluxes, as given by models.findEFM
+    reactions: A list of the reactions, given by cobraModel.reactions
+    
+    return: (terminalReactants, terminalProducts)
+    """
     reactants = []
     products = []
     
