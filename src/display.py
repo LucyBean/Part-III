@@ -70,8 +70,11 @@ tr#header {
             nameIndex = 1
             for flux in toDisplay[p]:
                 f.write("""\t\t\t<button onclick="showEFM(""" + str(index) + 
-                        """)">""" + p + " (" + str(nameIndex) + """)</button>\n""")
-                nameIndex += 1
+                        """)">""" + p)
+                if len(toDisplay[p]) != 1:
+                    f.write(" (" + str(nameIndex) + ")")
+                    nameIndex += 1
+                f.write("</button>\n")
                 index += 1
                 
         f.write("""\t\t</td>
