@@ -82,8 +82,17 @@ if __name__ == '__main__':
     Eno.add_metabolites({PG2:-1, PEP: 1})
     Pyk.add_metabolites({PEP:-1, ADP:-1, ATP: 1, PYR: 1})
     
+    
     model.add_reactions([Pgi, Zwf, Pgl, Gnd, Rpi, Rpe, Prs_DeoB, TktI,
                          Tal, TktII, Fbp, Pfk, Fba, TpiA, Gap, Pgk,
                          Gpm, Eno, Pyk])
+    
+    # External metabolites
+    externalMetabolites = ["NADP", "NADPH", "CO2", "G6P", "R5Pex", "ATP", "ADP", "Pyr", "NAD", "NADH"]
+    for em in externalMetabolites:
+        r = reversibleReaction("EX_" + em)
+        m = model.metabolites.get_by_id(em)
+        r.add_metabolites({m: 1})
+        model.add_reaction(r)
     
     save_json_model(model, "toyModel.json")
