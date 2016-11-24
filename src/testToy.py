@@ -5,6 +5,7 @@ Created on Nov 14, 2016
 '''
 
 import models
+import display
 import cobra
 
 defaultIgnore = ["NADP", "NADPH", "CO2", "G6P", "R5Pex", "ATP", "ADP", "Pyr", "NAD", "NADH"]
@@ -14,14 +15,14 @@ def testEFM(include, exclude = [], ignore=defaultIgnore):
     
     fluxes = models.findEFM(model, include, exclude, ignore)
     if fluxes is not None:
-        models.displayEFM(map_json="toyModelMap.json", reaction_data=fluxes)
+        display.displayEFM(map_json="toyModelMap.json", reaction_data=fluxes)
         
 def testPsemi(include):
     model = cobra.io.load_json_model("toyModel.json")
     
     fluxes = models.findPsemi(model, include)
     if fluxes is not None:
-        models.displayPsemi(map_json="toyModelMap.json", metabolite_data=fluxes)
+        display.displayPsemi(map_json="toyModelMap.json", metabolite_data=fluxes)
         
 def emfA():
     include = {"Pgi": models.FORWARD, "Pyk": models.FORWARD}

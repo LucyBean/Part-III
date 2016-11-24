@@ -289,24 +289,4 @@ def findPsemi(cobraModel, metabolitesToInclude):
         
         return flux
 
-def displayEFM(map_name=None, map_json=None, reaction_data=[]):
-    b = escher.Builder(map_name=map_name, map_json=map_json,
-                       reaction_data=reaction_data,
-                       # color and size according to the absolute value
-                   reaction_styles=['color', 'size', 'abs', 'text'],
-                   # change the default colors
-                   reaction_scale=[{'type': 'min', 'color': '#00cc00', 'size': 4},
-                                   {'type': 'mean', 'color': '#0000dd', 'size': 20},
-                                   {'type': 'max', 'color': '#ff0000', 'size': 40}])
-    b.display_in_browser(scroll_behavior="zoom")
-    
-def displayPsemi(map_name=None, map_json=None, metabolite_data=[]):
-    b = escher.Builder(map_name=map_name, map_json=map_json,
-                       metabolite_data=metabolite_data,
-                       # color and size according to the absolute value
-                   reaction_styles=['color', 'size', 'abs', 'text'],
-                   # change the default colors
-                   reaction_scale=[{'type': 'min', 'color': '#00cc00', 'size': 4},
-                                   {'type': 'mean', 'color': '#0000dd', 'size': 20},
-                                   {'type': 'max', 'color': '#ff0000', 'size': 40}])
-    b.display_in_browser(scroll_behavior="zoom")
+
