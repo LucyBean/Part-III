@@ -10836,3 +10836,34 @@ Pool objective bound 1e+100
 
 Model is infeasible
 Best objective -, best bound -, gap -
+
+Gurobi 7.0.1 (win64, Python) logging started 11/24/16 17:17:12
+
+Optimize a model with 73 rows, 141 columns and 514 nonzeros
+Model has 46 SOS constraints
+Variable types: 141 continuous, 0 integer (0 binary)
+Coefficient statistics:
+  Matrix range     [7e-02, 6e+01]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [0e+00, 0e+00]
+  RHS range        [1e+00, 1e+00]
+Presolve removed 33 rows and 58 columns
+Presolve time: 0.00s
+Presolved: 40 rows, 83 columns, 294 nonzeros
+Variable types: 83 continuous, 0 integer (0 binary)
+
+Root relaxation: objective 1.250000e+01, 35 iterations, 0.00 seconds
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+*    0     0               0      12.5000000   12.50000  0.00%     -    0s
+
+Explored 0 nodes (35 simplex iterations) in 0.01 seconds
+Thread count was 4 (of 4 available processors)
+
+Solution count 1: 12.5 
+Pool objective bound 12.5
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 1.250000000000e+01, best bound 1.250000000000e+01, gap 0.0000%
