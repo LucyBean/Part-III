@@ -14,6 +14,6 @@ startID = "G6P"
     
 cobraModel = cobra.io.load_json_model("toyModel.json")
 
-products = models.findProducts(cobraModel, startID, possibleTerminals, externalMetabolites)
+products = models.findProducts(cobraModel, startID, possibleTerminals)
 title = "Possible products for starting metabolite " + startID
 display.displayAll(cobraModel, "toyModelMap.json", products, title)

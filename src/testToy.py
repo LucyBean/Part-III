@@ -21,37 +21,37 @@ def testPsemi(include):
 def emfA():
     include = {"Pgi": models.FORWARD, "Pyk": models.FORWARD}
     exclude = ["Prs_DeoB", "Zwf"]
-    return models.findEFM(model, include, exclude, defaultIgnore)
+    return models.findEFM(model, include, exclude)
     
 def emfB():
     include = {"Zwf": models.FORWARD}
     exclude = ["Prs_DeoB", "Pfk", "Fbp"]
-    return models.findEFM(model, include, exclude, defaultIgnore)
+    return models.findEFM(model, include, exclude)
     
 def emfC():
     include = {"Zwf": models.FORWARD}
     exclude = ["Prs_DeoB", "Pgi"]
-    return models.findEFM(model, include, exclude, defaultIgnore)
+    return models.findEFM(model, include, exclude)
     
 def emfD():
     include = {"Zwf": models.FORWARD}
     exclude = []
-    return models.findEFM(model, include, exclude, defaultIgnore)
+    return models.findEFM(model, include, exclude)
     
 def emfE():
     include = {"Pgi": models.FORWARD}
     exclude = []
-    return models.findEFM(model, include, exclude, defaultIgnore)
+    return models.findEFM(model, include, exclude)
     
 def emfF():
     include = {"Zwf": models.FORWARD}
     exclude = ["Prs_DeoB"]
-    return models.findEFM(model, include, exclude, defaultIgnore)
+    return models.findEFM(model, include, exclude)
     
 def emfG():
     include = {"Pfk": models.FORWARD}
     exclude = []
-    return models.findEFM(model, include, exclude, defaultIgnore)
+    return models.findEFM(model, include, exclude)
     
 def ru5p_semi():
     include = ["Ru5P"]

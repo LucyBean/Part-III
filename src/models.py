@@ -123,27 +123,22 @@ def findTerminalReactantsAndProducts(possibleTerminals, flux, reactions):
     
     return: (terminalReactants, terminalProducts)
     """
-    reactants = []
-    products = []
     
-    for f in flux:
-        reaction = reactions.get_by_id(f)
-        rf = reaction.reactants
-        pf = reaction.products
-        if flux[f] > 0:
-            reactants += [r.id for r in rf]
-            products += [p.id for p in pf]
-        else:
-            reactants += [p.id for p in pf]
-            products += [r.id for r in rf]
+    terminalReactants = []
+    terminalProducts = []
     
-        # extract the metabolites that are only produced or consumed
-    # use sets to prevent extra work when handling duplicates
-    onlyProduced = set([m for m in products if m not in reactants])
-    onlyConsumed = set([m for m in reactants if m not in products])
-    
-    terminalReactants = [m for m in onlyConsumed if m in possibleTerminals]
-    terminalProducts =  [m for m in onlyProduced if m in possibleTerminals]
+    # For each possibleTerminal, find its associated external reaction and check if it
+    # has a flux
+    for pt in possibleTerminals:
+        rid = "EX_" + pt
+        if rid in reactions and rid in flux:
+            # If the flux through this reaction is positive then the metabolite
+            #   is being consumed by the reaction
+            f = flux[rid]
+            if f > 0:
+                terminalReactants.append(pt)
+            else:
+                terminalProducts.append(pt)
     
     return (terminalReactants, terminalProducts)
 
