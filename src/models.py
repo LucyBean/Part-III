@@ -7,7 +7,6 @@ from gurobipy import Model, LinExpr, GRB, tupledict
 from incidence import IncidenceMatrix
 import escher
 import sys
-from src.tempTestScript import externalMetabolites
 
 FORWARD = True
 REVERSE = False

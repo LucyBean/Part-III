@@ -1,30 +1,68 @@
-flux = models.findEFM(cobraModel, reactionsToInclude, reactionsToExclude, externalMetabolites)
+# hack hack
+if "products" not in locals():
+    execfile("tempTestScript.py")
 
-if flux is None:
-    print "Flux is none."
+startMetaboliteName = "G6P"
 
-possibleTerminals = ["G6P", "R5Pex", "Pyr"]
+with open("../visualisation/test/test.html", "wb") as f:
+    
+    f.write("""<html>
+<head>
+<style>
+iframe {
+    width:100%;
+    height:100%
+}
+table {
+    height: 100%;
+    width: 100%
+}
+td {
+    background-color:#7777FF;
+}
+div#visualiserPanel {
+    height: 100%
+}
+/* Set to 1px to make it as small as possible*/
+tr#header {
+    height: 1px
+}
+</style>
+</head>
+<body>
+<table>
+    <tr id="header">
+        <td>
+            <h2>Starting metabolite</h2>
+            """ + startMetaboliteName + """
+            <h2>Possible products</h2>\n""")
+    
+    index = 1
+    for p in products:
+        nameIndex = 1
+        for flux in products[p]:
+            f.write("""\t\t\t<button onclick="showEFM(""" + str(index) +
+                    """)">""" + p + " (" + str(nameIndex) + """)</button>\n""")
+            nameIndex += 1
+            index += 1
+    f.write("""\t\t</td>
+    </tr>
+    <tr>
+        <td>
+            <div id="visualiserPanel">
+            Click on a button to visualise the EFM.
+            </div>
+        </td>
 
-(terminalReactants, terminalProducts) = models.findTerminalReactantsAndProducts(possibleTerminals, flux, reactions)
-
-# Take the first product in terminalProducts and knock out that reaction
-if terminalProducts != []:
-    terminalProduct = metabolites.get_by_id(terminalProducts[0])
-    rs = list(terminalProduct.reactions)
-    # Take the first reaction in this list
-    knockOut = [r for r in rs if r.id in flux][0]
-    reactionsToExclude.append(knockOut.id)
-# The EMF produced is a loop
-else:
-    terminalProduct = startingMetabolite
-    rs = list(terminalProduct.reactions)
-    # Find all the reactions that the starting metabolite is involved in
-    mightKnockOut = [r for r in rs if r.id in flux]
-    # Find all of the ones that produce the starting metabolite
-    knockOut = []
-    for r in mightKnockOut:
-        if flux[r.id] > 0 and startingMetabolite in r.products:
-            knockOut.append(r)
-        elif flux[r.id] < 0 and startingMetabolite in r.reactants:
-            knockOut.append(r)
-    reactionsToExclude.append(knockOut[0].id)
+    </tr>
+</table>
+<script>
+var showEFM = function (num) {
+    var displayDiv = document.getElementById("visualiserPanel")
+    displayDiv.innerHTML = "<iframe src=\\"efm" + num + ".html\\"></iframe>"
+    
+}
+</script>
+</body>
+</html>""")
+    
