@@ -5,7 +5,6 @@ Created on Nov 12, 2016
 '''
 from gurobipy import Model, LinExpr, GRB, tupledict
 from incidence import IncidenceMatrix
-import escher
 import sys
 
 FORWARD = True
