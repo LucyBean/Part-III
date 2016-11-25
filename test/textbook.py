@@ -3,8 +3,7 @@ Created on Nov 12, 2016
 
 @author: Lucy
 '''
-import models
-import display
+from src import models, display
 import cobra.test
 
 if __name__ == '__main__':

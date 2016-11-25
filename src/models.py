@@ -161,7 +161,7 @@ def findEFM(cobraModel,
                                                               externalMetabolites,
                                                               reactionsToInclude,
                                                               reactionsToExclude)
-            
+    gurobiModel.params.LogToConsole = 0
     gurobiModel.optimize()
     
     
@@ -182,44 +182,47 @@ def findEFM(cobraModel,
         
         return flux
     
-def findProducts(cobraModel, startID, possibleTerminals, externalMetabolites):
+def findProducts(cobraModel, startID, possibleTerminals):
     metabolites = cobraModel.metabolites
     reactions = cobraModel.reactions
     if startID not in metabolites:
         sys.stderr.write("Attempting to start from unknown metabolite " + startID)
         return
     startingMetabolite = metabolites.get_by_id(startID)
-    possibleStartReactions = list(startingMetabolite.reactions)
+    # This will get all possible starting reactions. This excludes all reactions
+    #  that are marked as external (start with "EX_")
+    possibleStartReactions = [r for r in list(startingMetabolite.reactions) if r.id[0:3] != "EX_"]
     products = {}
     
     for startReaction in possibleStartReactions:
         reactionsToInclude = {startReaction.id: FORWARD}
         reactionsToExclude = []
         
-        # repeat 10 times
+        # Discover up to 10 reactions per initial start reaction.
         for _ in range(10):
-            flux = findEFM(cobraModel, reactionsToInclude, reactionsToExclude, externalMetabolites)
+            flux = findEFM(cobraModel, reactionsToInclude, reactionsToExclude)
             
+            # If no solutions remain then break out of loop
             if flux is None:
-                print "Flux is none."
                 break
             
-            
             (_, terminalProducts) = findTerminalReactantsAndProducts(possibleTerminals, flux, reactions)
-            
+            # Remove the starting metabolite if it appears in this list
+            terminalProducts = [p for p in terminalProducts if p != startID]
+        
             # Take the first product in terminalProducts and knock out that reaction
             if terminalProducts != []:
                 terminalProduct = metabolites.get_by_id(terminalProducts[0])
                 rs = list(terminalProduct.reactions)
                 # Take the first reaction in this list
-                knockOut = [r for r in rs if r.id in flux][0]
+                knockOut = [r for r in rs if r.id in flux and r.id[0:3] != "EX_"][0]
                 reactionsToExclude.append(knockOut.id)
             # The EMF produced is a loop
             else:
                 terminalProduct = startingMetabolite
                 rs = list(terminalProduct.reactions)
                 # Find all the reactions that the starting metabolite is involved in
-                mightKnockOut = [r for r in rs if r.id in flux]
+                mightKnockOut = [r for r in rs if r.id in flux and r.id[0:3] != "EX_"]
                 # Find all of the ones that produce the starting metabolite
                 knockOut = []
                 for r in mightKnockOut:

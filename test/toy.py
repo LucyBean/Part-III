@@ -4,8 +4,7 @@ Created on Nov 14, 2016
 @author: Lucy
 '''
 
-import models
-import display
+from src import models, display
 import cobra
 
 defaultIgnore = ["NADP", "NADPH", "CO2", "G6P", "R5Pex", "ATP", "ADP", "Pyr", "NAD", "NADH"]
@@ -66,4 +65,4 @@ if __name__ == '__main__':
     fluxes["E"] = [emfE()]
     fluxes["F"] = [emfF()]
     fluxes["G"] = [emfG()]
-    display.displayAll(model, "toyModelMap.json", fluxes, "EMFs according to the paper")
+    display.displayAll("toyModelMap.json", fluxes, "EMFs according to the paper")
