@@ -49,7 +49,7 @@ def displayAll(map_json, toDisplay, title=""):
                 on the generated web page which can be used to display the corresponding
                 EFM. This button will be have a label "name (#)" where # is a number.
     """
-    dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+    dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S") + " " + title
     os.makedirs("visualisation/" + dirID)
     with open("visualisation/" + dirID + "/visualise.html", "wb") as f:
         f.write("""<html>

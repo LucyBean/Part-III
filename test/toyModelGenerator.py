@@ -92,7 +92,7 @@ if __name__ == '__main__':
     for em in externalMetabolites:
         r = reversibleReaction("EX_" + em)
         m = model.metabolites.get_by_id(em)
-        r.add_metabolites({m: 1})
+        r.add_metabolites({m: -1})
         model.add_reaction(r)
     
     save_json_model(model, "toyModel.json")
