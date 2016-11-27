@@ -12,27 +12,23 @@ FORWARD = True
 REVERSE = False
 logToConsole = True
 
-def addSteadyStateConstraints(gurobiModel, incidence, externalMetabolites,
-                              forwardCoeffs, reverseCoeffs):
+def addSteadyStateConstraints(gurobiModel, incidence, forwardCoeffs, reverseCoeffs):
     """Adds constraints corresponding to the steady state constraint Cx=0
     
     gurobiModel: The Gurobi model to which the constraints to will be added
     incidence: an IncidenceMatrix object
-    externalMetabolites: the metabolites to ignore in steadys tate
     forwardCoeffs: list of Gurobi vars corresponding to the coefficients of the forward reactions
     reverseCoeffs: list of Gurobi vars corresponding to the coefficients of the reverse reactions
     """
     # Cx = 0
     cs = {}
     for m in incidence.metabolites:
-        if m.id not in externalMetabolites:
-            cs[m.id] = LinExpr()
+        cs[m.id] = LinExpr()
     for (e, m) in incidence.matrix:
-        if m not in externalMetabolites:
-            ratio = incidence.matrix[e, m]
-            cs[m] += ratio * forwardCoeffs[e]
-            if incidence.reactions.get_by_id(e).reversibility:
-                cs[m] += -ratio * reverseCoeffs[e]
+        ratio = incidence.matrix[e, m]
+        cs[m] += ratio * forwardCoeffs[e]
+        if incidence.reactions.get_by_id(e).reversibility:
+            cs[m] += -ratio * reverseCoeffs[e]
                 
     for c in cs:
         gurobiModel.addConstr(cs[c] == 0)
@@ -89,7 +85,7 @@ def addIncludedExcludedReactionConstraints(gurobiModel, incidence, reactionsToIn
         else:
             sys.stderr.write("Attempting to exclude unknown reaction:" + r + "\n")
 
-def makeGurobiModel(cobraModel, externalMetabolites, reactionsToInclude, reactionsToExclude):
+def makeGurobiModel(cobraModel, reactionsToInclude, reactionsToExclude):
     """Makes a Gurobi model from the given Cobra model, ready to be optimized.
     The objective function used will minimise the the sum of absolute flux
     through the reactions.    
@@ -105,8 +101,7 @@ def makeGurobiModel(cobraModel, externalMetabolites, reactionsToInclude, reactio
     # Reversibility
     addReversibilityConstraints(gurobiModel, incidence, forwardCoeffs, reverseCoeffs)
     # Cx = 0
-    addSteadyStateConstraints(gurobiModel, incidence, externalMetabolites,
-                              forwardCoeffs, reverseCoeffs)
+    addSteadyStateConstraints(gurobiModel, incidence, forwardCoeffs, reverseCoeffs)
     # Include and exclude reactions
     addIncludedExcludedReactionConstraints(gurobiModel, incidence, reactionsToInclude,
                                            reactionsToExclude, forwardCoeffs, reverseCoeffs)
@@ -197,8 +192,7 @@ def findTerminalReactantsAndProducts(flux, reactions):
 
 def findEFM(cobraModel,
                  reactionsToInclude=[],
-                 reactionsToExclude=[],
-                 externalMetabolites=[]):
+                 reactionsToExclude=[]):
     """Process a gurobiModel, producing a dictionary containing all included reactions
     and their fluxes. Uses an objective function that minimises the sum of the
     fluxes.
@@ -206,13 +200,10 @@ def findEFM(cobraModel,
     gurobiModel: A COBRA gurobiModel to be used.
     reactionsToExclude: A list of reactions whose fluxes should be zero.
     reactionsToInclude: A dict containing reaction/direction pairs. Direction should be
-        set to either models.FORWARD or models.BACKWARD
-    externalMetabolites: Metabolites which are ignored when finding a solution.    
+        set to either models.FORWARD or models.BACKWARD  
     """
             
-    (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, 
-                                                              externalMetabolites,
-                                                              reactionsToInclude,
+    (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, reactionsToInclude,
                                                               reactionsToExclude)
     gurobiModel.params.LogToConsole = 0
     gurobiModel.optimize()
