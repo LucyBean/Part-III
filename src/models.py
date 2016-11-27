@@ -235,7 +235,7 @@ def findEFM(cobraModel,
         
         return flux
     
-def findProducts(cobraModel, startID, possibleTerminals):
+def findProducts(cobraModel, startID):
     metabolites = cobraModel.metabolites
     reactions = cobraModel.reactions
     if startID not in metabolites:
@@ -259,13 +259,13 @@ def findProducts(cobraModel, startID, possibleTerminals):
             if flux is None:
                 break
             
-            (_, externalProducts) = findTerminalReactantsAndProducts(possibleTerminals, flux, reactions)
+            (_, externalProducts) = findTerminalReactantsAndProducts(flux, reactions)
             # Remove the starting metabolite if it appears in this list
-            externalProducts = [p for p in externalProducts if p != startID]
+            externalProducts = [p for p in externalProducts if p.id != startID]
         
             # Find the reaction that immediately leads to production of terminal product
             if externalProducts != []:
-                terminalProduct = metabolites.get_by_id(externalProducts[0])
+                terminalProduct = externalProducts[0]
                 rs = list(terminalProduct.reactions)
                 # Take the first reaction in this list
                 knockOut = [r for r in rs if r.id in flux and r.id[0:3] != "EX_"][0]

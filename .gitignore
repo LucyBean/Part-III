@@ -46,6 +46,7 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+gurobi.log
+
 test/temp*.py
 visualisation/
-gurobi.log
