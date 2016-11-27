@@ -116,32 +116,83 @@ def makeGurobiModel(cobraModel, externalMetabolites, reactionsToInclude, reactio
     gurobiModel.setObjective(forwardCoeffs.sum() + reverseCoeffs.sum(), GRB.MINIMIZE)
     return (gurobiModel, forwardCoeffs, reverseCoeffs)
 
-def findTerminalReactantsAndProducts(possibleTerminals, flux, reactions):
+def findTerminalReactantsAndProducts(flux, reactions):
     """Find the metabolites that are at the start and end of this pathway.
     
-    possibleTerminals: A list of the IDs of all metabolites that could be terminals.
     flux: A dict of fluxes, as given by models.findEFM
     reactions: A list of the reactions, given by cobraModel.reactions
     
     return: (terminalReactants, terminalProducts)
     """
+    externalReactants = []
+    externalProducts = []
     
-    terminalReactants = []
-    terminalProducts = []
-    
-    # For each possibleTerminal, find its associated external reaction and check if it
-    # has a flux
-    for pt in possibleTerminals:
-        rid = "EX_" + pt
-        if rid in reactions and rid in flux:
+    # Find all external reactions which have a flux through them
+    externalReactions = [r.id for r in reactions if r.id[0:3] == "EX_"]
+    for ep in externalReactions:
+        if ep in flux:
             # If the flux through this reaction is positive then the metabolite
             #   is being consumed by the reaction
-            f = flux[rid]
+            f = flux[ep]
+            metabolite = reactions.get_by_id(ep).products[0]
             if f > 0:
-                terminalReactants.append(pt)
+                externalReactants.append(metabolite)
             else:
-                terminalProducts.append(pt)
+                externalProducts.append(metabolite)
     
+    terminalProducts = []
+    terminalReactants = []
+    
+    # Find the final product
+    for ep in externalProducts:
+        # find all the non-external reactions that are used in solution
+        myReactions = [r for r in ep.reactions if r.id[0:3] != "EX_" and r.id in flux]
+        allExternalReactions = True
+    
+        for mr in myReactions:
+            if flux[mr.id] > 0:
+                products = mr.products
+            else:
+                products = mr.reactants
+                
+            # Check if all the products are external
+            allExternalMetabolites = True
+            for p in products:
+                if p not in externalProducts:
+                    allExternalMetabolites = False
+                    break
+                
+            if not allExternalMetabolites:
+                allExternalReactions = False
+            
+        if allExternalReactions:    
+            terminalProducts.append(ep)
+                
+    # Find the initial reactant
+    for ep in externalReactants:
+        # find all the non-external reactions that are used in solution
+        myReactions = [r for r in ep.reactions if r.id[0:3] != "EX_" and r.id in flux]
+        allExternalReactions = True
+        
+        for mr in myReactions:
+            if flux[mr.id] > 0:
+                reactants = mr.reactants
+            else:
+                reactants = mr.products
+                
+            # Check if all the products are external
+            allExternalMetabolites = True
+            for p in reactants:
+                if p not in externalReactants:
+                    allExternalMetabolites = False
+                    break
+                
+            if not allExternalMetabolites:
+                allExternalReactions = False
+                
+        if allExternalReactions:
+            terminalReactants.append(ep)
+                
     return (terminalReactants, terminalProducts)
 
 def findEFM(cobraModel,
@@ -208,13 +259,13 @@ def findProducts(cobraModel, startID, possibleTerminals):
             if flux is None:
                 break
             
-            (_, terminalProducts) = findTerminalReactantsAndProducts(possibleTerminals, flux, reactions)
+            (_, externalProducts) = findTerminalReactantsAndProducts(possibleTerminals, flux, reactions)
             # Remove the starting metabolite if it appears in this list
-            terminalProducts = [p for p in terminalProducts if p != startID]
+            externalProducts = [p for p in externalProducts if p != startID]
         
             # Find the reaction that immediately leads to production of terminal product
-            if terminalProducts != []:
-                terminalProduct = metabolites.get_by_id(terminalProducts[0])
+            if externalProducts != []:
+                terminalProduct = metabolites.get_by_id(externalProducts[0])
                 rs = list(terminalProduct.reactions)
                 # Take the first reaction in this list
                 knockOut = [r for r in rs if r.id in flux and r.id[0:3] != "EX_"][0]
