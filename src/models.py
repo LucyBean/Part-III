@@ -5,10 +5,12 @@ Created on Nov 12, 2016
 '''
 from gurobipy import Model, LinExpr, GRB, tupledict
 from incidence import IncidenceMatrix
+from src import helpers
 import sys
 
 FORWARD = True
 REVERSE = False
+logToConsole = True
 
 def addSteadyStateConstraints(gurobiModel, incidence, externalMetabolites,
                               forwardCoeffs, reverseCoeffs):
@@ -200,7 +202,7 @@ def findProducts(cobraModel, startID, possibleTerminals):
         
         # Discover up to 10 reactions per initial start reaction.
         for _ in range(10):
-            flux = findEFM(cobraModel, reactionsToInclude, reactionsToExclude)
+            flux = findEFM(cobraModel, reactionsToInclude, reactionsToExclude)            
             
             # If no solutions remain then break out of loop
             if flux is None:
@@ -210,13 +212,12 @@ def findProducts(cobraModel, startID, possibleTerminals):
             # Remove the starting metabolite if it appears in this list
             terminalProducts = [p for p in terminalProducts if p != startID]
         
-            # Take the first product in terminalProducts and knock out that reaction
+            # Find the reaction that immediately leads to production of terminal product
             if terminalProducts != []:
                 terminalProduct = metabolites.get_by_id(terminalProducts[0])
                 rs = list(terminalProduct.reactions)
                 # Take the first reaction in this list
                 knockOut = [r for r in rs if r.id in flux and r.id[0:3] != "EX_"][0]
-                reactionsToExclude.append(knockOut.id)
             # The EMF produced is a loop
             else:
                 terminalProduct = startingMetabolite
@@ -224,13 +225,24 @@ def findProducts(cobraModel, startID, possibleTerminals):
                 # Find all the reactions that the starting metabolite is involved in
                 mightKnockOut = [r for r in rs if r.id in flux and r.id[0:3] != "EX_"]
                 # Find all of the ones that produce the starting metabolite
-                knockOut = []
+                knockOutList = []
                 for r in mightKnockOut:
                     if flux[r.id] > 0 and startingMetabolite in r.products:
-                        knockOut.append(r)
+                        knockOutList.append(r)
                     elif flux[r.id] < 0 and startingMetabolite in r.reactants:
-                        knockOut.append(r)
-                reactionsToExclude.append(knockOut[0].id)
+                        knockOutList.append(r)
+                knockOut = knockOutList[0]
+                
+            # Display output
+            if logToConsole:
+                print "Found flux to", terminalProduct.id
+                print "Include:", reactionsToInclude
+                print "Exclude:", reactionsToExclude
+                helpers.printFlux(flux)
+                print "\n"
+            
+            # Knock out reaction that produces the terminal product
+            reactionsToExclude.append(knockOut.id)
             
             # Add this possible product/pathway to the products dict
             tpid = terminalProduct.id

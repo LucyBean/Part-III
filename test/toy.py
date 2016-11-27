@@ -34,7 +34,7 @@ def emfC():
     
 def emfD():
     include = {"Zwf": models.FORWARD}
-    exclude = []
+    exclude = ["Pgi"]
     return models.findEFM(model, include, exclude)
     
 def emfE():

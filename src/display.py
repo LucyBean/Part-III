@@ -18,7 +18,12 @@ def displayEFM(map_name=None, map_json=None, reaction_data=[]):
                    reaction_scale=[{'type': 'min', 'color': '#009933', 'size': 4},
                                    {'type': 'mean', 'color': '#0000dd', 'size': 20},
                                    {'type': 'max', 'color': '#ff0000', 'size': 40}])
-    b.display_in_browser(never_ask_before_quit=True, scroll_behavior="zoom")
+    dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+    os.makedirs("visualisation/" + dirID)
+    filepath = "visualisation/" + dirID + "/efm.html"
+    b.save_html(filepath=filepath, overwrite=True, never_ask_before_quit=True, scroll_behavior="zoom")
+    path = os.path.abspath(filepath)
+    os.startfile(path)
     
 def displayPsemi(map_name=None, map_json=None, metabolite_data=[]):
     """Displays a P-semiflow on the given map using the given metabolite data."""
@@ -30,7 +35,12 @@ def displayPsemi(map_name=None, map_json=None, metabolite_data=[]):
                    reaction_scale=[{'type': 'min', 'color': '#009933', 'size': 4},
                                    {'type': 'mean', 'color': '#0000dd', 'size': 20},
                                    {'type': 'max', 'color': '#ff0000', 'size': 40}])
-    b.display_in_browser(never_ask_before_quit=True, scroll_behavior="zoom")
+    dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+    os.makedirs("visualisation/" + dirID)
+    filepath = "visualisation/" + dirID + "/efm.html"
+    b.save_html(filepath=filepath, overwrite=True, never_ask_before_quit=True, scroll_behavior="zoom")
+    path = os.path.abspath(filepath)
+    os.startfile(path)
     
 def displayAll(map_json, toDisplay, title=""):
     """Displays all of the EFMs in toDisplay for the given cobraModel, map_json
