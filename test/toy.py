@@ -7,7 +7,6 @@ Created on Nov 14, 2016
 from src import models, display
 import cobra
 
-defaultIgnore = ["NADP", "NADPH", "CO2", "G6P", "R5Pex", "ATP", "ADP", "Pyr", "NAD", "NADH"]
 model = cobra.io.load_json_model("toyModel.json")
         
 def testPsemi(include):
