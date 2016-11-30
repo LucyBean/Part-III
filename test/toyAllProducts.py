@@ -13,4 +13,4 @@ cobraModel = cobra.io.load_json_model("toyModel.json")
 
 products = models.findProducts(cobraModel, startID)
 title = "Possible products for starting metabolite " + startID
-display.displayAll("toyModelMap.json", products, title)
+display.displayAll(map_json="toyModelMap.json", toDisplay=products, title=title)

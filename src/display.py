@@ -8,16 +8,19 @@ import escher
 import os
 import datetime
 
-def displayEFM(map_name=None, map_json=None, reaction_data=[]):
-    """Displays an EFM on the given map using the given reaction data."""
-    b = escher.Builder(map_name=map_name, map_json=map_json,
+def build(map_name = None, map_json = None, reaction_data = []):
+    return escher.Builder(map_name=map_name, map_json=map_json,
                        reaction_data=reaction_data,
                        # color and size according to the absolute value
                    reaction_styles=['color', 'size', 'abs', 'text'],
                    # change the default colors
-                   reaction_scale=[{'type': 'min', 'color': '#009933', 'size': 4},
-                                   {'type': 'mean', 'color': '#0000dd', 'size': 20},
+                   reaction_scale=[{'type': 'min', 'color': '#009933', 'size': 20},
+                                   {'type': 'mean', 'color': '#0000dd', 'size': 30},
                                    {'type': 'max', 'color': '#ff0000', 'size': 40}])
+
+def displayEFM(map_name=None, map_json=None, reaction_data=[]):
+    """Displays an EFM on the given map using the given reaction data."""
+    b = build(map_name = map_name, map_json = map_json, reaction_data = reaction_data)
     dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
     os.makedirs("visualisation/" + dirID)
     filepath = "visualisation/" + dirID + "/efm.html"
@@ -32,8 +35,8 @@ def displayPsemi(map_name=None, map_json=None, metabolite_data=[]):
                        # color and size according to the absolute value
                    reaction_styles=['color', 'size', 'abs', 'text'],
                    # change the default colors
-                   reaction_scale=[{'type': 'min', 'color': '#009933', 'size': 4},
-                                   {'type': 'mean', 'color': '#0000dd', 'size': 20},
+                   reaction_scale=[{'type': 'min', 'color': '#009933', 'size': 20},
+                                   {'type': 'mean', 'color': '#0000dd', 'size': 30},
                                    {'type': 'max', 'color': '#ff0000', 'size': 40}])
     dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
     os.makedirs("visualisation/" + dirID)
@@ -42,7 +45,7 @@ def displayPsemi(map_name=None, map_json=None, metabolite_data=[]):
     path = os.path.abspath(filepath)
     os.startfile(path)
     
-def displayAll(map_json, toDisplay, title=""):
+def displayAll(map_json=None, map_name=None, toDisplay={}, title=""):
     """Displays all of the EFMs in toDisplay for the given cobraModel, map_json
     
     toDisplay: A dict of the form {name: list of fluxes}. Each flux will be have a button
@@ -90,13 +93,7 @@ tr#header {
                 f.write("</button>\n")
                 
                 # Output this flux as an HTML file
-                b = escher.Builder(map_json=map_json, reaction_data=flux,
-                                   # color and size according to the absolute value
-                               reaction_styles=['color', 'size', 'abs', 'text'],
-                               # change the default colors
-                               reaction_scale=[{'type': 'min', 'color': '#009933', 'size': 4},
-                                               {'type': 'mean', 'color': '#0000dd', 'size': 20},
-                                               {'type': 'max', 'color': '#ff0000', 'size': 40}])
+                b = build(map_name = map_name, map_json = map_json, reaction_data = flux)
                 b.save_html(filepath="visualisation/" + dirID + "/efm" + str(index) + ".html",
                             overwrite=True, never_ask_before_quit=True, scroll_behavior="zoom")
                 

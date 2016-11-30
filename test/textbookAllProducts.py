@@ -7,7 +7,7 @@ import cobra.test
 from src import models, display
 
 if __name__ == '__main__':
-    startID = "lac__D_e"
+    startID = "glc__D_e"
     cobraModel = cobra.test.create_test_model("textbook")
     products = models.findProducts(cobraModel, startID)
     title = "Possible products for starting metabolite " + startID + " in textbook model"

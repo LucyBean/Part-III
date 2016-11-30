@@ -129,7 +129,15 @@ def findTerminalReactantsAndProducts(flux, reactions):
             # If the flux through this reaction is positive then the metabolite
             #   is being consumed by the reaction
             f = flux[ep]
-            metabolite = reactions.get_by_id(ep).products[0]
+            
+            # Find the metabolite involved in this reaction
+            epr = reactions.get_by_id(ep)
+            if epr.products != []:
+                metabolite = epr.products[0]
+            else:
+                metabolite = epr.reactants[0]
+                
+            # Append to reactants/products
             if f > 0:
                 externalReactants.append(metabolite)
             else:
@@ -205,7 +213,6 @@ def findEFM(cobraModel,
             
     (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, reactionsToInclude,
                                                               reactionsToExclude)
-    gurobiModel.params.LogToConsole = 0
     gurobiModel.optimize()
     
     
