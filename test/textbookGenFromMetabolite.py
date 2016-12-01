@@ -1,11 +1,10 @@
 import cobra.test
 from src import models, display
 
-if "flux" not in locals():
-    model = cobra.test.create_test_model("textbook")
-    include = {"EX_glc__D_e":models.REVERSE}
-    exclude = []
-    flux = models.findEFM(model, include, exclude, 0)
+model = cobra.test.create_test_model("textbook")
+include = {"EX_glc__D_e":models.REVERSE}
+exclude = []
+flux = models.findEFM(model, include, exclude, 0)
         
 reactions = model.reactions
 startReaction = reactions.get_by_id("EX_glc__D_e")

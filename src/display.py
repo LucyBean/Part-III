@@ -48,7 +48,7 @@ def displayPsemi(map_name=None, map_json=None, metabolite_data=[]):
 def displayAll(map_json=None, map_name=None, toDisplay={}, title=""):
     """Displays all of the EFMs in toDisplay for the given cobraModel, map_json
     
-    toDisplay: A dict of the form {name: list of fluxes}. Each flux will be have a button
+    toDisplay: A dict of the form {name: {desc:"...", fluxes:[...]}}. Each flux will be have a button
                 on the generated web page which can be used to display the corresponding
                 EFM. This button will be have a label "name (#)" where # is a number.
     """
@@ -77,45 +77,52 @@ div#visualiserPanel {
     height: 100%
 }
 /* Set to 1px to make it as small as possible*/
-tr#header {
+tr.header {
     height: 1px
 }
 </style>
 </head>
 <body>
 <table>
-    <tr id="header">
+    <tr class="header">
         <td><h1>""" + title + "</h1>")
         
-        index = 1
-        for p in toDisplay:
-            if type(toDisplay[p]) is list:
-                nameIndex = 1
-                for flux in toDisplay[p]:
-                    # Put a button on the main page
-                    f.write("""\t\t\t<button onclick="showEFM(""" + str(index) + 
-                            """)">""" + str(p))
-                    if len(toDisplay[p]) != 1:
-                        f.write(" (" + str(nameIndex) + ")")
-                        nameIndex += 1
-                    f.write("</button>\n")
-                    
-                    # Output this flux as an HTML file
-                    b = build(map_name = map_name, map_json = map_json, reaction_data = flux)
-                    b.save_html(filepath="visualisation/" + dirID + "/efm" + str(index) + ".html",
-                                overwrite=True, never_ask_before_quit=True, scroll_behavior="zoom")
+        index = 0
+        descriptions = []
+        for name in toDisplay:
+            data = toDisplay[name]
+            if "desc" in data:
+                description = data["desc"]
             else:
+                description = "No description"
+            descriptions.append(description)
+            fluxes = data["fluxes"]
+            nameIndex = 1
+            for flux in fluxes:
+                # Put a button on the main page
                 f.write("""\t\t\t<button onclick="showEFM(""" + str(index) + 
-                            """)">""" + str(p) + "</button>\n")
-                b = build(map_name = map_name, map_json = map_json, reaction_data = toDisplay[p])
+                        """)">""" + str(name))
+                if len(fluxes) != 1:
+                    f.write(" (" + str(nameIndex) + ")")
+                    nameIndex += 1
+                f.write("</button>\n")
+                
+                # Output this flux as an HTML file
+                b = build(map_name = map_name, map_json = map_json, reaction_data = flux)
                 b.save_html(filepath="visualisation/" + dirID + "/efm" + str(index) + ".html",
                             overwrite=True, never_ask_before_quit=True, scroll_behavior="zoom")
-                
                 
             index += 1
                 
                 
         f.write("""\t\t</td>
+    </tr>
+    <tr class="header">
+        <td>
+            <div id="descriptionPanel">
+            Description appears here.
+            </div>
+        </td>
     </tr>
     <tr>
         <td>
@@ -129,9 +136,14 @@ tr#header {
 <script>
 var showEFM = function (num) {
     var displayDiv = document.getElementById("visualiserPanel")
+    var descDiv = document.getElementById("descriptionPanel")
     displayDiv.innerHTML = "<iframe src=\\"efm" + num + ".html\\"></iframe>"
-    
+    descDiv.innerHTML = descriptions[num]
 }
+descriptions = [""")
+        for d in descriptions:
+            f .write(str(d) + ",")
+        f.write("""]
 </script>
 </body>
 </html>""")

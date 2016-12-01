@@ -10,9 +10,10 @@ def printFlux(flux):
         print "\t", f, "\t%.3f" % flux[f]
         
 def printProducts(products):
-    for p in products:
-        print p
-        for f in products[p]:
-            printFlux(f)
+    for name in products:
+        print name
+        fluxes = products[name]["fluxes"]
+        for flux in fluxes:
+            printFlux(flux)
             print ""
         print "\n-----\n"

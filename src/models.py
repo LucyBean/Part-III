@@ -7,6 +7,7 @@ from gurobipy import Model, LinExpr, GRB, tupledict
 from incidence import IncidenceMatrix
 from src import helpers
 import sys
+import json
 
 FORWARD = True
 REVERSE = False
@@ -298,8 +299,10 @@ def findProducts(cobraModel, startID):
             # Add this possible product/pathway to the products dict
             tpid = terminalProduct.id
             if tpid not in products:
-                products[tpid] = []
-            products[tpid].append(flux)
+                products[tpid] = {}
+                products[tpid]["desc"] = json.dumps("Include: " + str(reactionsToInclude) + "<br/>Exclude: " + str(reactionsToInclude))
+                products[tpid]["fluxes"] = []
+            products[tpid]["fluxes"].append(flux)
             
     return products
     
