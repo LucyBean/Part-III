@@ -52,6 +52,13 @@ def displayAll(map_json=None, map_name=None, toDisplay={}, title=""):
                 on the generated web page which can be used to display the corresponding
                 EFM. This button will be have a label "name (#)" where # is a number.
     """
+    # Convert a list of toDisplay to a dict with default names
+    if type(toDisplay) is list:
+        ltd = toDisplay
+        toDisplay = {}
+        for a in ltd:
+            toDisplay[len(toDisplay)] = a
+    
     dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S") + " " + title
     os.makedirs("visualisation/" + dirID)
     with open("visualisation/" + dirID + "/visualise.html", "wb") as f:
@@ -82,22 +89,31 @@ tr#header {
         
         index = 1
         for p in toDisplay:
-            nameIndex = 1
-            for flux in toDisplay[p]:
-                # Put a button on the main page
+            if type(toDisplay[p]) is list:
+                nameIndex = 1
+                for flux in toDisplay[p]:
+                    # Put a button on the main page
+                    f.write("""\t\t\t<button onclick="showEFM(""" + str(index) + 
+                            """)">""" + str(p))
+                    if len(toDisplay[p]) != 1:
+                        f.write(" (" + str(nameIndex) + ")")
+                        nameIndex += 1
+                    f.write("</button>\n")
+                    
+                    # Output this flux as an HTML file
+                    b = build(map_name = map_name, map_json = map_json, reaction_data = flux)
+                    b.save_html(filepath="visualisation/" + dirID + "/efm" + str(index) + ".html",
+                                overwrite=True, never_ask_before_quit=True, scroll_behavior="zoom")
+            else:
                 f.write("""\t\t\t<button onclick="showEFM(""" + str(index) + 
-                        """)">""" + p)
-                if len(toDisplay[p]) != 1:
-                    f.write(" (" + str(nameIndex) + ")")
-                    nameIndex += 1
-                f.write("</button>\n")
-                
-                # Output this flux as an HTML file
-                b = build(map_name = map_name, map_json = map_json, reaction_data = flux)
+                            """)">""" + str(p) + "</button>\n")
+                b = build(map_name = map_name, map_json = map_json, reaction_data = toDisplay[p])
                 b.save_html(filepath="visualisation/" + dirID + "/efm" + str(index) + ".html",
                             overwrite=True, never_ask_before_quit=True, scroll_behavior="zoom")
                 
-                index += 1
+                
+            index += 1
+                
                 
         f.write("""\t\t</td>
     </tr>
