@@ -200,7 +200,8 @@ def findTerminalReactantsAndProducts(flux, reactions):
 
 def findEFM(cobraModel,
                  reactionsToInclude=[],
-                 reactionsToExclude=[]):
+                 reactionsToExclude=[],
+                 logToConsole = 1):
     """Process a gurobiModel, producing a dictionary containing all included reactions
     and their fluxes. Uses an objective function that minimises the sum of the
     fluxes.
@@ -213,6 +214,7 @@ def findEFM(cobraModel,
             
     (gurobiModel, forwardCoeffs, reverseCoeffs) = makeGurobiModel(cobraModel, reactionsToInclude,
                                                               reactionsToExclude)
+    gurobiModel.params.logtoConsole = logToConsole
     gurobiModel.optimize()
     
     
