@@ -14,4 +14,4 @@ if __name__ == '__main__':
     fluxes = models.findEFM(model, include, exclude)
     
     if fluxes is not None:
-        display.displayEFM(map_name="e_coli_core.Core metabolism", reaction_data=fluxes)
+        display.displayEFM(map_json="e_coli_core.json", reaction_data=fluxes)

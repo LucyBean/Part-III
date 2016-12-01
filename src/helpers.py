@@ -5,7 +5,8 @@ Created on Nov 25, 2016
 '''
 
 def printFlux(flux):
-    for f in flux:
+    sortedKeys = sorted(flux)
+    for f in sortedKeys:
         print "\t", f, "\t%.3f" % flux[f]
         
 def printProducts(products):
