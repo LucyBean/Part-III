@@ -9,7 +9,7 @@ import cobra.test
 if __name__ == '__main__':
     model = cobra.test.create_test_model("textbook")
     include = {"EX_glc__D_e":models.REVERSE}
-    exclude = ["PGI"]
+    exclude = ["TKT2","PGL"]
     
     fluxes = models.findEFM(model, include, exclude)
     

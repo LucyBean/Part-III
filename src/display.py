@@ -7,6 +7,7 @@ Created on Nov 24, 2016
 import escher
 import os
 import datetime
+import json
 
 def build(map_name = None, map_json = None, reaction_data = []):
     return escher.Builder(map_name=map_name, map_json=map_json,
@@ -61,6 +62,10 @@ def displayAll(map_json=None, map_name=None, toDisplay={}, title=""):
     
     dirID = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S") + " " + title
     os.makedirs("visualisation/" + dirID)
+    # dump products
+    with open("visualisation/" + dirID + "/products.json", "wb") as f:
+        f.write(json.dumps(toDisplay))
+    
     with open("visualisation/" + dirID + "/visualise.html", "wb") as f:
         f.write("""<html>
 <head>

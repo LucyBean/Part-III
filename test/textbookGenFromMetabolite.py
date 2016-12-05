@@ -1,5 +1,9 @@
 import cobra.test
 from src import models, display
+import json
+import time
+
+startTime = time.time()
 
 model = cobra.test.create_test_model("textbook")
 include = {"EX_glc__D_e":models.REVERSE}
@@ -9,14 +13,27 @@ flux = models.findEFM(model, include, exclude, 0)
 reactions = model.reactions
 startReaction = reactions.get_by_id("EX_glc__D_e")
 
-efmsToExplore = [flux]
-efmsGenerated = {0: flux}
+displayOutput = {}
+displayOutput[0] = {}
+displayOutput[0]["desc"] = json.dumps("Include: " + str(include) + "<br/>Exclude: " + str(exclude))
+displayOutput[0]["fluxes"] = [flux]
+
+efmsToExplore = [(flux, exclude)]
+efmsGenerated = [flux]
+efmsGeneratedReactionNames = [flux.keys()]
+testedExclusions = [exclude]
 count = 0
+infeasibleCount = 0
+duplicateCount = 0
+infeasibleTime = 0
+duplicateTime = 0
+
 while efmsToExplore != []:
     print "Exploring efm", count
     count += 1
     # Remove the efm at the tail of the list
-    flux = efmsToExplore[-1]
+    efm = efmsToExplore[-1]
+    flux = efm[0]
     efmsToExplore = efmsToExplore[:-1]
     
     reactionsToExplore = [startReaction]
@@ -82,14 +99,39 @@ while efmsToExplore != []:
                 if nr in attemptedKnockOuts:
                     continue
                 attemptedKnockOuts.append(nr)
-                nexclude = exclude + [nr.id]
+                nexclude = efm[1] + [nr.id]
+                if nexclude in testedExclusions:
+                    print "\tDuplicate exclusion set."
+                    continue
+                testedExclusions.append(nexclude)
+                t1 = time.time()
                 nflux = models.findEFM(model, include, nexclude, 0)
                 
-                if nflux is not None and nflux not in efmsGenerated.values():
-                    print "\tNew flux generated:", nexclude
-                    efmsToExplore.append(nflux)
-                    efmsGenerated[len(efmsGenerated)] = nflux
+                if nflux is not None and nflux != {}:
+                    if nflux.keys() not in efmsGeneratedReactionNames:
+                        print "\tNew flux generated:", nexclude
+                        efmsToExplore.append((nflux, nexclude))
+                        efmsGenerated.append(nflux)
+                        efmsGeneratedReactionNames.append(nflux.keys())
+                        i = len(displayOutput)
+                        displayOutput[i] = {}
+                        displayOutput[i]["desc"] = json.dumps("Include: " + str(include) + "<br/>Exclude: " + str(nexclude))
+                        displayOutput[i]["fluxes"] = [nflux]
+                    else:
+                        print "\tDuplicate flux generated", nexclude
+                        duplicateCount += 1
+                        duplicateTime += time.time() - t1
+                else:
+                    print "\tInfeasible", nexclude
+                    infeasibleCount += 1
+                    infeasibleTime += time.time() - t1
 
-print "Generated", len(efmsGenerated), "EFMs"
+elapsedTime = time.time() - startTime
+print "Generated", len(efmsGenerated), "EFMs."
+print infeasibleCount, "infeasible EFMs tried"
+print duplicateCount, "duplicate EFMs generated"
+print "in", elapsedTime, "seconds"
+print "Spent", infeasibleTime, "on trying infeasible EFMs"
+print "Spent", duplicateTime, "on generating duplicate EFMs"
 
-display.displayAll(map_json="e_coli_core.json", toDisplay=efmsGenerated, title="EFMs from glc__D_e")
+display.displayAll(map_json="e_coli_core.json", toDisplay=displayOutput, title="EFMs from glc__D_e")

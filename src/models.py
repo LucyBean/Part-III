@@ -106,6 +106,8 @@ def makeGurobiModel(cobraModel, reactionsToInclude, reactionsToExclude):
     # Include and exclude reactions
     addIncludedExcludedReactionConstraints(gurobiModel, incidence, reactionsToInclude,
                                            reactionsToExclude, forwardCoeffs, reverseCoeffs)
+    # Minimum flux sum constraint
+    gurobiModel.addConstr(forwardCoeffs.sum() + reverseCoeffs.sum() >= 1)
         
     # ## Set objective function
     # Minimise sum of fluxes
