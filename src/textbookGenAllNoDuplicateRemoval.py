@@ -1,13 +1,7 @@
 import cobra
-from src import models, display
+from src import models, display, helpers
 import json
 import time
-
-def reactionNamesToVal(reactionIDs):
-    val = 0
-    for r in reactionIDs:
-        val += reactionVals[r]
-    return val
 
 model = cobra.io.load_json_model("toyModel.json")
 reactions = model.reactions
@@ -16,11 +10,10 @@ include = {startReaction.id: models.FORWARD, "EX_Pyr": models.REVERSE}
 exclude = []
 flux = models.findEFM(model, include, exclude, 0)
 
-reactionVals = {}
-nextVal = 1
-for r in reactions:
-    reactionVals[r.id] = nextVal
-    nextVal *= 2
+reactionVals = helpers.genReactionVals(reactions)
+
+def reactionNamesToVal(reactionIDs):
+    return helpers.reactionNamesToVal(reactionIDs, reactionVals)
 
 efmsToExplore = [(flux, exclude)]
 efmsGenerated = [reactionNamesToVal(flux.keys())]
@@ -94,6 +87,7 @@ while inp != "q":
                 break
             # See if this has been generated before and increment count if so
             if efmReactionsVal not in efmsGeneratedByExclusionSet:
+                print "\tFound new", efmReactionsVal
                 efmsGeneratedByExclusionSet[efmReactionsVal] = []
                 # Save the display
                 i = efmReactionsVal
@@ -103,7 +97,7 @@ while inp != "q":
             else:
                 duplicateCount += 1
                 print "\tEFM has been generated before"
-            efmsGeneratedByExclusionSet[efmReactionsVal].append(efmReactionsVal)
+            efmsGeneratedByExclusionSet[efmReactionsVal].append(nexcludeVal)
             
         else:
             infeasibleCount += 1
