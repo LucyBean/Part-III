@@ -8,6 +8,7 @@ startTime = time.time()
 model = cobra.test.create_test_model("textbook")
 include = {"EX_glc__D_e":models.REVERSE}
 exclude = []
+exclude.sort()
 flux = models.findEFM(model, include, exclude, 0)
         
 reactions = model.reactions
@@ -20,7 +21,7 @@ displayOutput[0]["fluxes"] = [flux]
 
 efmsToExplore = [(flux, exclude)]
 efmsGenerated = [flux]
-efmsGeneratedReactionNames = [flux.keys()]
+efmsGenerated = [flux.keys()]
 testedExclusions = [exclude]
 count = 0
 infeasibleCount = 0
@@ -100,6 +101,7 @@ while efmsToExplore != []:
                     continue
                 attemptedKnockOuts.append(nr)
                 nexclude = efm[1] + [nr.id]
+                nexclude.sort()
                 if nexclude in testedExclusions:
                     print "\tDuplicate exclusion set."
                     continue
@@ -108,11 +110,12 @@ while efmsToExplore != []:
                 nflux = models.findEFM(model, include, nexclude, 0)
                 
                 if nflux is not None and nflux != {}:
-                    if nflux.keys() not in efmsGeneratedReactionNames:
+                    efmReactions = sorted(nflux.keys())
+                    if efmReactions not in efmsGenerated:
                         print "\tNew flux generated:", nexclude
                         efmsToExplore.append((nflux, nexclude))
                         efmsGenerated.append(nflux)
-                        efmsGeneratedReactionNames.append(nflux.keys())
+                        efmsGenerated.append(efmReactions)
                         i = len(displayOutput)
                         displayOutput[i] = {}
                         displayOutput[i]["desc"] = json.dumps("Include: " + str(include) + "<br/>Exclude: " + str(nexclude))
