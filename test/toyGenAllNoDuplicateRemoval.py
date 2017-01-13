@@ -1,4 +1,4 @@
-from src.genAll import FluxGenerator
+from src.generator import FluxGenerator
 import cobra
 from src import models
 

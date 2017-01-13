@@ -99,7 +99,7 @@ tr.header {
             if "desc" in data:
                 description = data["desc"]
             else:
-                description = "No description"
+                description = "\"No description\""
             descriptions.append(description)
             fluxes = data["fluxes"]
             nameIndex = 1
