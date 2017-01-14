@@ -21,6 +21,7 @@ class FluxGenerator:
         self._maxCount = -1
         self._maxTime = -1
         self._extra = lambda flux, excludeVal: None
+        self._autoStopRatio = -1
         
         # Output
         self.efmsGenerated = [] # List of EFMs generated
@@ -41,6 +42,9 @@ class FluxGenerator:
     def setMaxTime(self, maxTime):
         self._maxTime = maxTime
         
+    def useAutoStop(self, ratio=1):
+        self._autoStopRatio = ratio        
+        
     def removeDuplicates(self):
         self._removeDuplicates = True
         
@@ -58,6 +62,45 @@ class FluxGenerator:
         
     def getUniqueCount(self):
         return len(set(self.efmsGenerated))
+    
+    def getMinimalEFMs(self):
+        if self.getUniqueCount() == 0:
+            return []
+        # Get all bits that correspond to external reactions
+        externalReactionIDs = [r.id for r in self.reactions if r.id[:2] == "EX"]
+        externalReactionsVal = self._reactionNamesToVal(externalReactionIDs)
+        
+        # Get the unique efms sorted according to their value
+        # Remove external reaction bits
+        efms = sorted([e & ~externalReactionsVal for e in set(self.efmsGenerated)])
+        
+        minimalEFMs = [efms[0]]
+        
+                
+        # Go through the efms and find minimal EFMs
+        for e in efms[1:]:
+            minimal = True
+            # Remove all bits corresponding to external reactions
+            e = e & ~externalReactionsVal
+            for m in minimalEFMs:
+                # Try and OR in all previously found minimal EFMs
+                orv = e | m
+                if orv == e:
+                    # This is not minimal
+                    minimal = False
+                    break
+            if minimal:
+                minimalEFMs.append(e)
+                
+        return minimalEFMs
+    
+    def _checkAutoStop(self):
+        if self._autoStopRatio > 0:
+            ic = self.infeasibleCount
+            vc = self.getUniqueCount()
+            
+            if ic > self._autoStopRatio * vc:
+                self.stop("Auto stop: infeasible-to-unique ratio exceeds limit")
         
     def _runExtra(self, flux, excludeVal):
         startWait = time.time()
@@ -163,6 +206,11 @@ class FluxGenerator:
                     # Infeasible model
                     self.infeasibleCount += 1
                     self._output("\tInfeasible")
+                    # Check auto stop
+                    self._checkAutoStop()
+                    # Check if stop has been flagged
+                    if self._breakLoop:
+                        break
                 else:
                     # Feasible model
                     efmReactions = nflux.keys()
@@ -186,6 +234,8 @@ class FluxGenerator:
                         
                     # Do anything extra that has been specified by the user
                     self._runExtra(nflux, nexcludeVal)
+                    # Check auto stop
+                    self._checkAutoStop()
                     # Check if stop has been flagged
                     if self._breakLoop:
                         break
@@ -200,38 +250,4 @@ class FluxGenerator:
                 
         self.timeTaken = self.getTimeDelta()
         self.printResults()
-        
-    def getMinimalEFMs(self):
-        # Get all bits that correspond to external reactions
-        externalReactionIDs = [r.id for r in self.reactions if r.id[:2] == "EX"]
-        externalReactionsVal = self._reactionNamesToVal(externalReactionIDs)
-        
-        # Get the unique efms sorted according to their value
-        # Remove external reaction bits
-        efms = sorted([e & ~externalReactionsVal for e in set(self.efmsGenerated)])
-        
-        minimalEFMs = [efms[0]]
-        
-                
-        # Go through the efms and find minimal EFMs
-        for e in efms[1:]:
-            minimal = True
-            # Remove all bits corresponding to external reactions
-            e = e & ~externalReactionsVal
-            for m in minimalEFMs:
-                # Try and OR in all previously found minimal EFMs
-                orv = e | m
-                if orv == e:
-                    # This is not minimal
-                    minimal = False
-                    break
-            if minimal:
-                minimalEFMs.append(e)
-                
-        return minimalEFMs
-            
-            
-            
-            
-            
             
