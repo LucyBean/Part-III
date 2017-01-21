@@ -25,15 +25,12 @@ mcounts = [0] # Minimal count
 startTime = time.time()
 # Make the extra function check the count
 def extra(flux, excludeVal):
-    count = len(fg.efmsGenerated)
-    prevCount = counts[-1]
-    if (count != prevCount):
-        counts.append(count)
-        ucounts.append(len(set(fg.efmsGenerated)))
-        times.append(fg.getTimeDelta())
-        icounts.append(fg.infeasibleCount)
-        dcounts.append(fg.duplicateCount)
-        mcounts.append(len(fg.getMinimalEFMs()))
+    counts.append(len(fg.efmsGenerated))
+    ucounts.append(len(fg.uniqueEFMs))
+    times.append(fg.getTimeDelta())
+    icounts.append(fg.infeasibleCount)
+    dcounts.append(fg.duplicateCount)
+    mcounts.append(len(fg.getMinimalEFMs()))
 fg.setExtra(extra)
 
 fg.genAll()
