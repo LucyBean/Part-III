@@ -4,6 +4,7 @@ Created on Jan 12, 2017
 @author: Lucy
 '''
 
+from __future__ import print_function
 from src import models
 import time
 
@@ -31,9 +32,9 @@ class FluxGenerator:
     def useManualInput(self):
         self._useManual = True
         self._verboseOutput = True
-        print "q to quit"
-        print "e to view EFMs generated"
-        print "c to view counts"
+        print("q to quit")
+        print("e to view EFMs generated")
+        print("c to view counts")
         
     def setMaxCount(self, maxCount):
         self._maxCount = maxCount
@@ -56,7 +57,7 @@ class FluxGenerator:
     def stop(self, reason):
         """ Stops the FluxGenerator at the next iteration of the loop."""
         if reason is not None:
-            print "Reason to stop:", reason
+            print("Reason to stop:" + reason)
         self._breakLoop = True
 
     
@@ -115,16 +116,20 @@ class FluxGenerator:
     
     def _feedback(self, string):
         if self._verboseOutput:
-            print string
+            print(string)
             
     def printResults(self):
-        print "Generated:"
-        print "\t", len(self.efmsGenerated), "total EFMs"
-        print "\t", len(self.uniqueEFMs), "unique EFMs"
-        print "\t", self.duplicateCount, "duplicate EFMs generated"
-        print "\t", self.infeasibleCount, "infeasible EFMs tried"
-        print "\t", len(self.getMinimalEFMs()), "minimal EFMs"
-        print "Time taken:", self.timeTaken
+        print("Generated:")
+        print("\t" + str(len(self.efmsGenerated)) + " total EFMs")
+        print("\t" + str(len(self.uniqueEFMs)) + " unique EFMs")
+        print("\t" + str(self.duplicateCount) +" duplicate EFMs generated")
+        print("\t" + str(self.infeasibleCount) + " infeasible EFMs tried")
+        print("\t" + str(len(self.getMinimalEFMs())) + " minimal EFMs")
+        print("Time taken: " + str(self.timeTaken))
+        
+    def printProgress(self):
+        s = "Time: {:6.2f} Count: {:7}".format(self.getTimeDelta(), len(self.efmsGenerated))
+        print(s, end="\r")
         
     def genAll(self):
         # Set up initial values
@@ -184,11 +189,11 @@ class FluxGenerator:
                         self.stop("User input")
                         break
                     if userInput == "e":
-                        print self.efmsGenerated
+                        print(self.efmsGenerated)
                     if userInput == "c":
-                        print "Generated", len(self.efmsGenerated)
-                        print "Generated", self.duplicateCount, "duplicate EFMs" 
-                        print "Generated", self.infeasibleCount, "infeasible EFMs"
+                        print("Generated" + str(len(self.efmsGenerated)))
+                        print("Generated" + str(self.duplicateCount) + "duplicate EFMs") 
+                        print("Generated" + str(self.infeasibleCount) + "infeasible EFMs")
                     self._waitTime += time.time() - startWait
                     
                 # Check if this exclusion set has been tested before
@@ -235,6 +240,8 @@ class FluxGenerator:
                         
                     # Do anything extra that has been specified by the user
                     self._runExtra(nflux, nexcludeSet)
+                    self.printProgress()
+                    
                     # Check auto stop
                     self._checkAutoStop()
                     # Check if stop has been flagged
