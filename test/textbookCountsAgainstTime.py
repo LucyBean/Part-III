@@ -10,9 +10,10 @@ startReaction = model.reactions.get_by_id("EX_glc__D_e")
 include = {startReaction.id: models.REVERSE}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
-fg.setMaxTime(150)
+fg.setMaxTime(60)
 fg.setMaxCount(1000)
 fg.suppressOutput()
+#fg.useManualInput()
 #fg.removeDuplicates()
 
 counts = [0]
@@ -24,7 +25,7 @@ mcounts = [0] # Minimal count
 
 startTime = time.time()
 # Make the extra function check the count
-def extra(flux, excludeVal):
+def extra(flux, excludeVal, **kwargs):
     counts.append(len(fg.efmsGenerated))
     ucounts.append(len(fg.uniqueEFMs))
     times.append(fg.getTimeDelta())
