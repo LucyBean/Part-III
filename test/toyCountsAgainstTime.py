@@ -2,6 +2,8 @@ from src.generator import FluxGenerator
 import matplotlib.pyplot as plt
 import cobra
 from src import models
+import threading
+from msvcrt import getch
 
 # Generate some EFMs
 model = cobra.io.load_json_model("toyModel.json")
@@ -9,6 +11,7 @@ startReaction = model.reactions.get_by_id("EX_G6P")
 include = {startReaction.id: models.FORWARD}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
+fg.setMaxTime(10)
 fg.setMaxCount(300)
 fg.suppressOutput()
 #fg.removeDuplicates()
@@ -19,7 +22,7 @@ icounts = [0] # Infeasible count
 dcounts = [0] # Duplicate count
 ucounts = [0] # Unique count
 # Make the extra function retrieve counts
-def extra(flux, excludeVal):
+def extra(flux, excludeVal, **kwargs):
     counts.append(len(fg.efmsGenerated))
     ucounts.append(len(fg.uniqueEFMs))
     times.append(fg.getTimeDelta())

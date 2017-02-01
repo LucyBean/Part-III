@@ -7,6 +7,8 @@ Created on Jan 12, 2017
 from __future__ import print_function
 from src import models
 import time
+import threading
+from msvcrt import getch
 
 class FluxGenerator:
     def __init__(self, model, startReaction, include, initialExclude):
@@ -22,6 +24,7 @@ class FluxGenerator:
         self._maxTime = -1
         self._extra = lambda flux, excludeSet, **kwargs: None
         self._autoStopRatio = -1
+        self._autoStopMin = -1
         
         # Output
         self.efmsGenerated = [] # List of EFMs generated
@@ -37,13 +40,17 @@ class FluxGenerator:
         print("c to view counts")
         
     def setMaxCount(self, maxCount):
+        print("Setting max count " + str(maxCount))
         self._maxCount = maxCount
         
     def setMaxTime(self, maxTime):
+        print("Setting max time " + str(maxTime))
         self._maxTime = maxTime
         
-    def useAutoStop(self, ratio=1):
-        self._autoStopRatio = ratio        
+    def useAutoStop(self, ratio=1, min=8):
+        print("Using auto stop with ratio=" + str(ratio) + " min=" + str(min))
+        self._autoStopRatio = ratio
+        self._autoStopMin = min
         
     def removeDuplicates(self):
         self._removeDuplicates = True
@@ -57,7 +64,7 @@ class FluxGenerator:
     def stop(self, reason):
         """ Stops the FluxGenerator at the next iteration of the loop."""
         if reason is not None:
-            print("Reason to stop:" + reason)
+            print("\nReason to stop:" + reason)
         self._breakLoop = True
 
     
@@ -92,9 +99,9 @@ class FluxGenerator:
         return minimalEFMs
     
     def _checkAutoStop(self):
-        if self._autoStopRatio > 0:
+        vc = len(self.uniqueEFMs)
+        if self._autoStopRatio > 0 and vc > self._autoStopMin:
             ic = self.infeasibleCount
-            vc = self.getUniqueCount()
             
             if ic > self._autoStopRatio * vc:
                 self.stop("Auto stop: infeasible-to-unique ratio exceeds limit")
@@ -129,10 +136,25 @@ class FluxGenerator:
         
     def printProgress(self):
         if (not self._verboseOutput and not self._useManual):
-            s = "Time: {:6.2f} Count: {:7}".format(self.getTimeDelta(), len(self.efmsGenerated))
+            s = "Time: {:6.2f} Count: {:7} Infeasible: {:7}".format(self.getTimeDelta(),
+                                                                    len(self.efmsGenerated),
+                                                                    self.infeasibleCount)
             print(s, end="\r")
-        
+            
     def genAll(self):
+        print("Finding EFMs. Push ESC to quit.")
+        genThread = threading.Thread(target=self._genAll)
+        genThread.start()
+        a = None
+        # Break loop if the escape key is pressed
+        while genThread.isAlive():
+            a = getch()
+            if ord(a) == 27: # Escape key
+                self.stop("Manual stop")
+                break
+        
+        
+    def _genAll(self):
         # Set up initial values
         flux  = self._findEFM(self.exclude)
         exclude = self.exclude
@@ -177,7 +199,8 @@ class FluxGenerator:
             self._feedback("Exploring EFM " + str(fluxNames))
             
             # Find all possible knock outs
-            knockOutAble = [self.reactions.get_by_id(r) for r in fluxNames if r not in self.include and r not in exclude]
+            knockOutAble = [self.reactions.get_by_id(r) for r in fluxNames
+                            if r not in self.include and r not in exclude]
             # And try to knock out each reaction
             for r in knockOutAble:
                 nexcludeSet = exclude | set([r.id])
@@ -211,10 +234,14 @@ class FluxGenerator:
                     # Infeasible model
                     self.infeasibleCount += 1
                     self._feedback("\tInfeasible")
+                    self.printProgress()
                     # Check auto stop
                     self._checkAutoStop()
                     # Check if stop has been flagged
                     if self._breakLoop:
+                        break
+                    # Check whether max time has been exceeded
+                    if self._maxTime > 0 and self.getTimeDelta() >= self._maxTime:
                         break
                 else:
                     # Feasible model

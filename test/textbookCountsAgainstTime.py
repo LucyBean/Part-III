@@ -14,7 +14,7 @@ fg.setMaxTime(60)
 fg.setMaxCount(1000)
 fg.suppressOutput()
 #fg.useManualInput()
-#fg.removeDuplicates()
+fg.removeDuplicates()
 
 counts = [0]
 times = [0]

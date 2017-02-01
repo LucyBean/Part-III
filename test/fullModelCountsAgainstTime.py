@@ -10,7 +10,8 @@ model = cobra.io.read_sbml_model("MODEL1108160000.xml")
 
 # Pick a random reaction to include
 #randID = random.randrange(0, len(model.reactions))
-startReaction = model.reactions.get_by_id("POR5")
+#startReaction = model.reactions[randID]
+startReaction = model.reactions.get_by_id("ARGSS")
 
 print "Including reaction", startReaction.id
 
@@ -18,10 +19,11 @@ print "Including reaction", startReaction.id
 include = {startReaction.id: models.FORWARD}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
-fg.setMaxTime(300)
+#fg.useAutoStop(ratio=2)
+fg.setMaxTime(10)
 #fg.setMaxCount(100)
 fg.suppressOutput()
-fg.removeDuplicates()
+#fg.removeDuplicates()
  
 counts = [0]
 times = [0]
