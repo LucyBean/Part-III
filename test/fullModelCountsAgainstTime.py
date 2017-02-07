@@ -20,10 +20,10 @@ include = {startReaction.id: models.FORWARD}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
 #fg.useAutoStop(ratio=2)
-fg.setMaxTime(10)
+fg.setMaxTime(300)
 #fg.setMaxCount(100)
 fg.suppressOutput()
-#fg.removeDuplicates()
+fg.removeDuplicates()
  
 counts = [0]
 times = [0]

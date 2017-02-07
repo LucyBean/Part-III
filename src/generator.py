@@ -8,7 +8,9 @@ from __future__ import print_function
 from src import models
 import time
 import threading
-from msvcrt import getch
+from msvcrt import getch, putch
+import json
+import datetime
 
 class FluxGenerator:
     def __init__(self, model, startReaction, include, initialExclude):
@@ -23,8 +25,10 @@ class FluxGenerator:
         self._maxCount = -1
         self._maxTime = -1
         self._extra = lambda flux, excludeSet, **kwargs: None
+        self._infeasibleExtra = lambda newest, excludeSet, **kwargs: None
         self._autoStopRatio = -1
         self._autoStopMin = -1
+        self._manualStop = True
         
         # Output
         self.efmsGenerated = [] # List of EFMs generated
@@ -47,16 +51,24 @@ class FluxGenerator:
         print("Setting max time " + str(maxTime))
         self._maxTime = maxTime
         
-    def useAutoStop(self, ratio=1, min=8):
+    def useAutoStop(self, ratio=1, minn=8):
         print("Using auto stop with ratio=" + str(ratio) + " min=" + str(min))
         self._autoStopRatio = ratio
-        self._autoStopMin = min
+        self._autoStopMin = minn
+        
+    def disableManualStop(self):
+        print("Manual stop turned off")
+        self._manualStop = False
         
     def removeDuplicates(self):
+        print("Removing intermediate duplicates.")
         self._removeDuplicates = True
         
     def setExtra(self, extra):
         self._extra = extra
+        
+    def setInfeasibleExtra(self, infeasibleExtra):
+        self._infeasibleExtra = infeasibleExtra
         
     def suppressOutput(self):
         self._verboseOutput = False
@@ -111,6 +123,11 @@ class FluxGenerator:
         self._extra(flux, excludeVal, **kwargs)
         self._waitTime += time.time() - startWait
         
+    def _runInfeasibleExtra(self, newest, excludeSet, **kwargs):
+        startWait = time.time()
+        self._infeasibleExtra(newest, excludeSet, **kwargs)
+        self._waitTime += time.time() - startWait
+        
     def getTimeDelta(self):
         now = time.time()
         return now - self._startTime - self._waitTime
@@ -126,7 +143,7 @@ class FluxGenerator:
             print(string)
             
     def printResults(self):
-        print("Generated:")
+        print("\nGenerated:")
         print("\t" + str(len(self.efmsGenerated)) + " total EFMs")
         print("\t" + str(len(self.uniqueEFMs)) + " unique EFMs")
         print("\t" + str(self.duplicateCount) +" duplicate EFMs generated")
@@ -147,12 +164,16 @@ class FluxGenerator:
         genThread.start()
         a = None
         # Break loop if the escape key is pressed
-        while genThread.isAlive():
-            a = getch()
-            if ord(a) == 27: # Escape key
-                self.stop("Manual stop")
-                break
-        
+        if self._manualStop:
+            while genThread.isAlive():
+                a = getch()
+                if ord(a) == 27: # Escape key
+                    self.stop("Manual stop")
+                    break
+        else:
+            genThread.join()
+            
+        print("\n")
         
     def _genAll(self):
         # Set up initial values
@@ -175,7 +196,7 @@ class FluxGenerator:
             self.efmsGenerated.append(flux )
             efmsGeneratedNames.append(self._fluxToNames(flux ))
             # Do anything extra that has been specified by the user
-            self._runExtra(flux , self.exclude)
+            self._runExtra(flux , self.exclude, newest=self.startReaction)
             
         testedExclusions = [self.exclude]
         
@@ -234,6 +255,7 @@ class FluxGenerator:
                     # Infeasible model
                     self.infeasibleCount += 1
                     self._feedback("\tInfeasible")
+                    self._infeasibleExtra(r, nexcludeSet)
                     self.printProgress()
                     # Check auto stop
                     self._checkAutoStop()
@@ -267,7 +289,7 @@ class FluxGenerator:
                     self.efmsGenerated.append(nflux)
                         
                     # Do anything extra that has been specified by the user
-                    self._runExtra(nflux, nexcludeSet, oldFlux = flux )
+                    self._runExtra(nflux, nexcludeSet, newest=r)
                     self.printProgress()
                     
                     # Check auto stop
@@ -286,4 +308,13 @@ class FluxGenerator:
                 
         self.timeTaken = self.getTimeDelta()
         self.printResults()
+        putch("\n")
+        
+    def writeResults(self, label=""):
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+        reac = self.startReaction.id
+        data = json.dumps(self.efmsGenerated)
+        with open(date + " " + label + " " + reac + ".json", "w") as f:
+            f.write(data)
+    
             
