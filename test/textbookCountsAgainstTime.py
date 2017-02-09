@@ -1,7 +1,7 @@
 from src.generator import FluxGenerator
 import matplotlib.pyplot as plt
 import cobra.test
-from src import models
+from src import models, emailer
 import time
 
 # Generate some EFMs
@@ -34,9 +34,12 @@ def extra(flux, excludeVal, **kwargs):
     mcounts.append(len(fg.getMinimalEFMs()))
 fg.setExtra(extra)
 
-fg.genAll()
+fg.genAll(2)
 
-#plt.plot(times, icounts, 'ro', times, dcounts, 'go', times, ucounts, 'bo')
+body = fg.getConfig() + "\n\n---Results---\n" + fg.getResults()
+#emailer.emailText("Complete!","The run has completed.")
+
+plt.clf()
 ip, = plt.plot(times, icounts, label="Infeasible", color='red')
 dp, = plt.plot(times, dcounts, label="Duplicate", color='green')
 up, = plt.plot(times, ucounts, label="Unique", color="blue")
@@ -44,4 +47,8 @@ mp, = plt.plot(times, mcounts, label="Minimal", color="purple")
 plt.legend(handles=[ip, dp, up, mp])
 plt.xlabel("Time")
 plt.ylabel("EFM count")
-plt.show()
+plt.savefig("Temp.png")
+
+emailer.emailImage("Complete!", body, "Temp.png")
+
+

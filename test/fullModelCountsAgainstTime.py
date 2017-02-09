@@ -20,7 +20,7 @@ include = {startReaction.id: models.FORWARD}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
 #fg.useAutoStop(ratio=2)
-fg.setMaxTime(300)
+fg.setMaxTime(1000)
 #fg.setMaxCount(100)
 fg.suppressOutput()
 fg.removeDuplicates()
@@ -43,7 +43,7 @@ def extra(flux, excludeVal, **kwargs):
     mcounts.append(len(fg.getMinimalEFMs()))
 fg.setExtra(extra)
  
-fg.genAll()
+fg.genAll(strategy = 2)
  
 if len(fg.efmsGenerated) > 0:
     # Show the plot if some were generated

@@ -74,8 +74,8 @@ def plotTotals():
     plt.show()
     
 def plotTotals2():
-    goodTotals = [reacCounts[r]["total"] for r in reacCounts if reacCounts[r]["ratio"] < 0.1]
-    badTotals = [reacCounts[r]["total"] for r in reacCounts if reacCounts[r]["ratio"] > 0.9]
+    goodTotals = [reacCounts[r]["i"] for r in reacCounts if reacCounts[r]["ratio"] < 0.1]
+    badTotals = [reacCounts[r]["i"] for r in reacCounts if reacCounts[r]["ratio"] > 0.9]
     g, = plt.plot(sorted(goodTotals), label="Ratio < 0.1")
     b, = plt.plot(sorted(badTotals), label="Ratio > 0.9")
     plt.ylabel("Total number of EFMs with this reaction")

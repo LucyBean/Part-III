@@ -11,6 +11,8 @@ import threading
 from msvcrt import getch, putch
 import json
 import datetime
+import random
+import numpy as np
 
 class FluxGenerator:
     def __init__(self, model, startReaction, include, initialExclude):
@@ -29,6 +31,7 @@ class FluxGenerator:
         self._autoStopRatio = -1
         self._autoStopMin = -1
         self._manualStop = True
+        self._stopReason = None
         
         # Output
         self.efmsGenerated = [] # List of EFMs generated
@@ -36,32 +39,53 @@ class FluxGenerator:
         self.duplicateCount = 0 # Count of duplicate EFMs generated
         self.timeTaken = 0
         
+    def getConfig(self):
+        """Returns a string showing the configuration of the FluxGenerator"""
+        s = """Model: {model!s}
+Start reaction: {startReaction!s}
+Initial exclude: {exclude!s}
+Use manual: {useManual}
+Remove duplicates: {removeDuplicates}
+Max count: {maxCount}
+Max time: {maxTime}
+Auto stop ratio: {asr}""".format(model = self.model,
+                              startReaction = self.startReaction,
+                              exclude = self.exclude,
+                              useManual = self._useManual,
+                              removeDuplicates = self._removeDuplicates,
+                              maxCount = self._maxCount,
+                              maxTime = self._maxTime,
+                              asr = self._autoStopRatio)
+        return s
+        
+        
+        
     def useManualInput(self):
         self._useManual = True
         self._verboseOutput = True
-        print("q to quit")
-        print("e to view EFMs generated")
-        print("c to view counts")
+        self.output("q to quit")
+        self.output("e to view EFMs generated")
+        self.output("c to view counts")
         
     def setMaxCount(self, maxCount):
-        print("Setting max count " + str(maxCount))
+        self.output("Setting max count " + str(maxCount))
         self._maxCount = maxCount
         
     def setMaxTime(self, maxTime):
-        print("Setting max time " + str(maxTime))
+        self.output("Setting max time " + str(maxTime))
         self._maxTime = maxTime
         
     def useAutoStop(self, ratio=1, minn=8):
-        print("Using auto stop with ratio=" + str(ratio) + " min=" + str(min))
+        self.output("Using auto stop with ratio=" + str(ratio) + " min=" + str(min))
         self._autoStopRatio = ratio
         self._autoStopMin = minn
         
     def disableManualStop(self):
-        print("Manual stop turned off")
+        self.output("Manual stop turned off")
         self._manualStop = False
         
     def removeDuplicates(self):
-        print("Removing intermediate duplicates.")
+        self.output("Removing intermediate duplicates.")
         self._removeDuplicates = True
         
     def setExtra(self, extra):
@@ -76,7 +100,7 @@ class FluxGenerator:
     def stop(self, reason):
         """ Stops the FluxGenerator at the next iteration of the loop."""
         if reason is not None:
-            print("\nReason to stop:" + reason)
+            self._stopReason = reason
         self._breakLoop = True
 
     
@@ -142,25 +166,47 @@ class FluxGenerator:
         if self._verboseOutput:
             print(string)
             
+    def output(self, string, **kwargs):
+        print(string, **kwargs)
+            
+    def getResults(self):
+        s = """Reason to stop: {reason}
+
+Generated:
+    {total:>6} total EFMs
+    {unique:>6} unique EFMs
+    {dupl:>6} duplicate EFMs
+    {infs:>6} infeasible EFMs
+    {min:>6} minimal EFMs
+    Time taken: {time}""".format(total = len(self.efmsGenerated),
+                                 unique = len(self.uniqueEFMs),
+                                 dupl = self.duplicateCount,
+                                 infs = self.infeasibleCount,
+                                 min = len(self.getMinimalEFMs()),
+                                 time = self.timeTaken,
+                                 reason = self._stopReason)
+        return s
+            
     def printResults(self):
-        print("\nGenerated:")
-        print("\t" + str(len(self.efmsGenerated)) + " total EFMs")
-        print("\t" + str(len(self.uniqueEFMs)) + " unique EFMs")
-        print("\t" + str(self.duplicateCount) +" duplicate EFMs generated")
-        print("\t" + str(self.infeasibleCount) + " infeasible EFMs tried")
-        print("\t" + str(len(self.getMinimalEFMs())) + " minimal EFMs")
-        print("Time taken: " + str(self.timeTaken))
+        self.output(self.getResults())
         
     def printProgress(self):
         if (not self._verboseOutput and not self._useManual):
-            s = "Time: {:6.2f} Count: {:7} Infeasible: {:7}".format(self.getTimeDelta(),
+            s = "Time: {:6.2f} Count: {:7} Infeasible: {:7}".format(time.time() - self._startTime,
                                                                     len(self.efmsGenerated),
                                                                     self.infeasibleCount)
-            print(s, end="\r")
+            self.output(s, end="\r")
             
-    def genAll(self):
-        print("Finding EFMs. Push ESC to quit.")
-        genThread = threading.Thread(target=self._genAll)
+    def genAll(self, strategy):
+        self.output("Finding EFMs. Push ESC to quit.")
+        if strategy == 1:
+            self.output("Using strategy 1")
+            genThread = threading.Thread(target=self._genAll)
+        elif strategy == 2:
+            self.output("Using strategy 2")
+            genThread = threading.Thread(target=self._genAllRand)
+        else:
+            return
         genThread.start()
         a = None
         # Break loop if the escape key is pressed
@@ -173,7 +219,7 @@ class FluxGenerator:
         else:
             genThread.join()
             
-        print("\n")
+        self.output("\n")
         
     def _genAll(self):
         # Set up initial values
@@ -208,7 +254,7 @@ class FluxGenerator:
                 self.stop("Generated max number of EFMs")
                 break
             # Check whether max time has been exceeded
-            if self._maxTime > 0 and self.getTimeDelta() >= self._maxTime:
+            if self._maxTime > 0 and time.time() - self._startTime >= self._maxTime:
                 self.stop("Max time reached")
                 break
             
@@ -235,11 +281,11 @@ class FluxGenerator:
                         self.stop("User input")
                         break
                     if userInput == "e":
-                        print(self.efmsGenerated)
+                        self.output(self.efmsGenerated)
                     if userInput == "c":
-                        print("Generated" + str(len(self.efmsGenerated)))
-                        print("Generated" + str(self.duplicateCount) + "duplicate EFMs") 
-                        print("Generated" + str(self.infeasibleCount) + "infeasible EFMs")
+                        self.output("Generated" + str(len(self.efmsGenerated)))
+                        self.output("Generated" + str(self.duplicateCount) + "duplicate EFMs") 
+                        self.output("Generated" + str(self.infeasibleCount) + "infeasible EFMs")
                     self._waitTime += time.time() - startWait
                     
                 # Check if this exclusion set has been tested before
@@ -271,9 +317,11 @@ class FluxGenerator:
                     self._feedback("\tFlux generated " + str(efmReactionsSet))
                     
                     # Check if this has been generated before
+                    unique = True
                     if efmReactionsSet in efmsGeneratedNames:
                         self._feedback("\tDuplicate flux")
                         self.duplicateCount += 1
+                        unique = False
                     else:
                         # Add to unique list
                         self.uniqueEFMs.append(nflux)
@@ -282,7 +330,7 @@ class FluxGenerator:
                     # Add this to the list of EFMs to check if:
                         # not removing duplicates, or
                         # it is not a duplicate
-                    if not self._removeDuplicates or efmReactionsSet not in efmsGeneratedNames:
+                    if not self._removeDuplicates or unique:
                         efmsToExplore.append((nflux, nexcludeSet))
                     
                     # Add to list of EFMs generated
@@ -303,8 +351,154 @@ class FluxGenerator:
                         break
                     
                     # Check whether max time has been exceeded
-                    if self._maxTime > 0 and self.getTimeDelta() >= self._maxTime:
+                    if self._maxTime > 0 and time.time() - self._startTime >= self._maxTime:
                         break
+                
+        self.timeTaken = self.getTimeDelta()
+        self.printResults()
+        putch("\n")
+        
+    def score(self, r, reacCounts):
+        if r not in reacCounts:
+            return 1
+        fc = reacCounts[r]["f"]
+        ic = reacCounts[r]["i"]
+        return (fc+1)/float(fc+ic+1)
+        
+    def _genAllRand(self):
+        # Set up initial values
+        flux  = self._findEFM(self.exclude)
+        exclude = self.exclude
+        self.efmsGenerated = [] # List of EFMs generated
+        self.uniqueEFMs = [] # List of unique EFMs
+        self.infeasibleCount = 0 # Count of infeasible EFMs tried
+        self.duplicateCount = 0 # Count of duplicate EFMs generated
+        self.timeTaken = 0
+        self._startTime = time.time()
+        self._waitTime = 0
+        self._breakLoop = False
+        
+        # efmsToExplore consists of
+        # (reactionToAdd, score, prevExcludeSet)
+        # tuples
+        
+        efmsToExplore = [] # List of EFMs left to check
+        efmsGeneratedNames = [] # List of EFMs generated by reaction names
+        reacCounts = {}
+        
+        def thisScore(r):
+            return self.score(r, reacCounts)
+        
+        # Initialise
+        if flux  is not None:
+            efmsToExplore.append((flux , 1, set(exclude)))
+            self.efmsGenerated.append(flux )
+            fluxNames = self._fluxToNames(flux)
+            efmsGeneratedNames.append(fluxNames)
+            # Do anything extra that has been specified by the user
+            self._runExtra(flux , exclude, newest=self.startReaction)
+            knockOutAble = [r for r in fluxNames if r not in self.include and r not in exclude]
+            efmsToExplore = [(r, 1, exclude) for r in knockOutAble]
+            
+        testedExclusions = [self.exclude]
+        
+        while not self._breakLoop:
+            if len(efmsToExplore) == 0: # No EFMs left to explore
+                self.stop("Explored all EFMs")
+                break
+            if self._maxCount > 0 and len(self.efmsGenerated) >= self._maxCount: # Reached max count
+                self.stop("Generated max number of EFMs")
+                break
+            # Check whether max time has been exceeded
+            if self._maxTime > 0 and time.time() - self._startTime >= self._maxTime:
+                self.stop("Max time reached")
+                break
+            self._checkAutoStop()
+            if self._breakLoop:
+                break
+            
+            scores = np.array([e[1] for e in efmsToExplore])
+            totScore = float(np.sum(scores))
+            relScores = scores / totScore
+            rand = random.uniform(0,1)
+            r = np.sum(np.cumsum(relScores) < rand)
+            nextReac = efmsToExplore[r]
+            efmsToExplore = efmsToExplore[:r] + efmsToExplore[r+1:] # Remove rth element from list
+            nextReaction = nextReac[0]
+            prevExclude = nextReac[2]
+            nextExclude = prevExclude | set([nextReaction])
+            
+            if nextExclude in testedExclusions:
+                self._feedback("Duplicate exclusion set " + str(nextExclude))
+                continue # Skip this exclusion set and try next
+            testedExclusions.append(nextExclude)
+                
+            self._feedback("Trying exclude set " + str(nextExclude))
+            flux = self._findEFM(nextExclude)
+            self._feedback("Success: " + str(flux is not None))
+            
+            # Check for user input to pause or give feedback
+            if self._useManual:
+                startWait = time.time()
+                userInput = raw_input()
+                if userInput == "q":
+                    self.stop("User input")
+                    break
+                if userInput == "e":
+                    self.output(self.efmsGenerated)
+                if userInput == "c":
+                    self.output("Generated" + str(len(self.efmsGenerated)))
+                    self.output("Generated" + str(self.duplicateCount) + "duplicate EFMs") 
+                    self.output("Generated" + str(self.infeasibleCount) + "infeasible EFMs")
+                self._waitTime += time.time() - startWait
+                
+            if flux is None:
+                # Infeasible model
+                self.infeasibleCount += 1
+                self._feedback("\tInfeasible")
+                self._infeasibleExtra(nextReac, nextExclude)
+                if nextReaction  not in reacCounts:
+                    reacCounts[nextReaction] = {}
+                    reacCounts[nextReaction]["f"] = 0
+                    reacCounts[nextReaction]["i"] = 1
+                else:
+                    reacCounts[nextReaction]["i"] += 1
+                # Check auto stop
+                self._checkAutoStop()
+            else:
+                efmReactionsSet = self._fluxToNames(flux)
+                self._feedback("\tFlux generated " + str(efmReactionsSet))
+                self.efmsGenerated.append(flux)
+                # Feasible model
+                # Check if this has been generated before
+                unique = True
+                if efmReactionsSet in efmsGeneratedNames:
+                    self._feedback("\tDuplicate flux")
+                    self.duplicateCount += 1
+                    unique = False
+                else:
+                    # Add to unique list
+                    self.uniqueEFMs.append(flux)
+                    efmsGeneratedNames.append(efmReactionsSet)
+                    
+                # get score
+                if nextReaction not in reacCounts:
+                    reacCounts[nextReaction] = {}
+                    reacCounts[nextReaction]["f"] = 0
+                    reacCounts[nextReaction]["i"] = 1
+                else:
+                    reacCounts[nextReaction]["f"] += 1
+                    
+                # If this generated a new flux
+                if not self._removeDuplicates or unique:
+                    # Find all possible reactions that could be knocked out
+                    knockOutAble = [r for r in fluxNames if r not in self.include and r not in exclude]
+                    efmsToExplore += [(r, thisScore(r), nextExclude) for r in knockOutAble]
+                    
+                # Do anything extra that has been specified by the user
+                self._runExtra(flux, nextExclude, newest=r)
+                
+            self.printProgress()
                 
         self.timeTaken = self.getTimeDelta()
         self.printResults()
