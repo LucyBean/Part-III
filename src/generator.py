@@ -97,6 +97,9 @@ Auto stop ratio: {asr}""".format(model = self.model,
     def suppressOutput(self):
         self._verboseOutput = False
         
+    def silent(self):
+        self.output = lambda string, **kwargs : None
+        
     def stop(self, reason):
         """ Stops the FluxGenerator at the next iteration of the loop."""
         if reason is not None:
@@ -195,7 +198,7 @@ Generated:
             s = "Time: {:6.2f} Count: {:7} Infeasible: {:7}".format(time.time() - self._startTime,
                                                                     len(self.efmsGenerated),
                                                                     self.infeasibleCount)
-            self.output(s, end="\r")
+            print(s, end="\r")
             
     def genAll(self, strategy):
         self.output("Finding EFMs. Push ESC to quit.")
@@ -460,6 +463,7 @@ Generated:
                 if nextReaction  not in reacCounts:
                     reacCounts[nextReaction] = {}
                     reacCounts[nextReaction]["f"] = 0
+                    reacCounts[nextReaction]["u"] = 0
                     reacCounts[nextReaction]["i"] = 1
                 else:
                     reacCounts[nextReaction]["i"] += 1
@@ -484,10 +488,13 @@ Generated:
                 # get score
                 if nextReaction not in reacCounts:
                     reacCounts[nextReaction] = {}
-                    reacCounts[nextReaction]["f"] = 0
-                    reacCounts[nextReaction]["i"] = 1
+                    reacCounts[nextReaction]["f"] = 1
+                    reacCounts[nextReaction]["u"] = 0
+                    reacCounts[nextReaction]["i"] = 0
                 else:
                     reacCounts[nextReaction]["f"] += 1
+                if unique:
+                    reacCounts[nextReaction]["u"] += 1
                     
                 # If this generated a new flux
                 if not self._removeDuplicates or unique:

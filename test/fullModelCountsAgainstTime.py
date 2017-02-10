@@ -1,7 +1,7 @@
 from src.generator import FluxGenerator
 import matplotlib.pyplot as plt
 import cobra
-from src import models
+from src import models, emailer
 import time
 import random
 
@@ -21,6 +21,7 @@ initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
 #fg.useAutoStop(ratio=2)
 fg.setMaxTime(1000)
+fg.disableManualStop()
 #fg.setMaxCount(100)
 fg.suppressOutput()
 fg.removeDuplicates()
@@ -43,9 +44,11 @@ def extra(flux, excludeVal, **kwargs):
     mcounts.append(len(fg.getMinimalEFMs()))
 fg.setExtra(extra)
  
-fg.genAll(strategy = 2)
+fg.genAll(strategy = 1)
  
 if len(fg.efmsGenerated) > 0:
+    body = fg.getConfig() + "\n\n---Results---\n" + fg.getResults()
+    plt.clf()
     # Show the plot if some were generated
     ip, = plt.plot(times, icounts, label="Infeasible", color='red')
     dp, = plt.plot(times, dcounts, label="Duplicate", color='green')
@@ -54,4 +57,8 @@ if len(fg.efmsGenerated) > 0:
     plt.legend(handles=[ip, dp, up, mp])
     plt.xlabel("Time")
     plt.ylabel("EFM count")
-    plt.show()
+    plt.savefig("Temp.png")
+    
+    emailer.emailImage("Complete!", body, "Temp.png")
+    
+execfile("test/temp3.py")
