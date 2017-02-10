@@ -32,6 +32,9 @@ class FluxGenerator:
         self._autoStopMin = -1
         self._manualStop = True
         self._stopReason = None
+        self._countDumpFile = None
+        self.alpha = 1.0
+        self.beta = 1.5
         
         # Output
         self.efmsGenerated = [] # List of EFMs generated
@@ -48,14 +51,18 @@ Use manual: {useManual}
 Remove duplicates: {removeDuplicates}
 Max count: {maxCount}
 Max time: {maxTime}
-Auto stop ratio: {asr}""".format(model = self.model,
+Auto stop ratio: {asr}
+Alpha: {alpha}
+Beta: {beta}""".format(model = self.model,
                               startReaction = self.startReaction,
                               exclude = self.exclude,
                               useManual = self._useManual,
                               removeDuplicates = self._removeDuplicates,
                               maxCount = self._maxCount,
                               maxTime = self._maxTime,
-                              asr = self._autoStopRatio)
+                              asr = self._autoStopRatio,
+                              alpha = self.alpha,
+                              beta = self.beta)
         return s
         
         
@@ -173,7 +180,8 @@ Auto stop ratio: {asr}""".format(model = self.model,
         print(string, **kwargs)
             
     def getResults(self):
-        s = """Reason to stop: {reason}
+        s = """
+Reason to stop: {reason}
 
 Generated:
     {total:>6} total EFMs
@@ -225,14 +233,32 @@ Generated:
         return r
     
     def score(self, nextReaction, reacCounts):
+        """Calculates the score of a reaction given the reacCounts
+        
+        reacCounts should be a dictionary which contains unique, feasible, and infeasible counts
+        for each reaction."""
         if nextReaction not in reacCounts:
             return 1
         uc = reacCounts[nextReaction]["u"]
         fc = reacCounts[nextReaction]["f"]
         ic = reacCounts[nextReaction]["i"]
         
-        return float(uc+1) / (fc+ic+1)
+        return float(uc+1)**self.alpha / (fc+ic+1)**self.beta
         
+    def dumpCountsToFile(self, fileName=None):
+        """Causes the FluxGenerator to dump counts to the file.
+        
+        Returns the name of the file so it can be opened later"""
+        if fileName is None:
+            date = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+            fileName = date + " {model!s} {startReaction!s} counts.csv".format(model = self.model,
+                                                                    startReaction = self.startReaction)
+        path = "dumps/" + fileName
+        self._countDumpFile = open(path, "w")
+        # Write headers
+        self._countDumpFile.write("time,total,infeasible,duplicate,unique\n")
+        
+        return (path)
             
     def genAll(self):
         self.output("Finding EFMs. Push ESC to quit.")
@@ -246,12 +272,16 @@ Generated:
                 if ord(a) == 27: # Escape key
                     self.stop("Manual stop")
                     break
-        else:
-            genThread.join()
+        
+        genThread.join()
             
         self.output("\n")
         
     def _genAll(self):
+        if self._countDumpFile is not None and self._countDumpFile.closed:
+            self.output("Count dump file unavailable")
+            self._countDumpFile = None
+            
         # Set up initial values
         flux  = self._findEFM(self.exclude)
         exclude = self.exclude
@@ -387,16 +417,28 @@ Generated:
                 self._runExtra(flux, nextExclude, newest=r)
                 
             self.printProgress()
+            
+            # Dump counts if necessary
+            if self._countDumpFile is not None:
+                self._countDumpFile.write("{t},{tc},{ic},{dc},{uc}\n".format(t=self.getTimeDelta(),
+                                                     tc=len(self.efmsGenerated),
+                                                     ic=self.infeasibleCount,
+                                                     dc=self.duplicateCount,
+                                                     uc=len(self.uniqueEFMs)))
                 
         self.timeTaken = self.getTimeDelta()
         self.printResults()
         putch("\n")
+        if self._countDumpFile is not None:
+            self._countDumpFile.close()
         
-    def writeResults(self, label=""):
-        date = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
-        reac = self.startReaction.id
+    def writeResults(self, fileName=None):
+        if fileName is None:
+            date = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+            fileName = date + " {model!s} {startReaction!s} EFMs.json".format(model = self.model,
+                                                                    startReaction = self.startReaction)
         data = json.dumps(self.efmsGenerated)
-        with open(date + " " + label + " " + reac + ".json", "w") as f:
+        with open(fileName, "w") as f:
             f.write(data)
     
             
