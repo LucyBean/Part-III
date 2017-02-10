@@ -2,8 +2,7 @@ from src.generator import FluxGenerator
 import matplotlib.pyplot as plt
 import cobra
 from src import models, emailer
-import time
-import random
+#import random
 
 # Load in model
 model = cobra.io.read_sbml_model("MODEL1108160000.xml")
@@ -20,45 +19,44 @@ include = {startReaction.id: models.FORWARD}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
 #fg.useAutoStop(ratio=2)
-fg.setMaxTime(1000)
+fg.setMaxTime(3600)
 fg.disableManualStop()
 #fg.setMaxCount(100)
 fg.suppressOutput()
-fg.removeDuplicates()
- 
-counts = [0]
-times = [0]
-icounts = [0] # Infeasible count
-dcounts = [0] # Duplicate count
-ucounts = [0] # Unique count
-mcounts = [0] # Minimal count
- 
-startTime = time.time()
-# Make the extra function check the count
-def extra(flux, excludeVal, **kwargs):
-    counts.append(len(fg.efmsGenerated))
-    ucounts.append(len(fg.uniqueEFMs))
-    times.append(fg.getTimeDelta())
-    icounts.append(fg.infeasibleCount)
-    dcounts.append(fg.duplicateCount)
-    mcounts.append(len(fg.getMinimalEFMs()))
-fg.setExtra(extra)
- 
-fg.genAll(strategy = 1)
- 
-if len(fg.efmsGenerated) > 0:
+#fg.removeDuplicates()
+countsPath = fg.dumpCountsToFile()
+fg.alpha = 2.6
+fg.beta = 2.7
+
+
+fg.genAll()
+
+if len(fg.efmsGenerated) > 1:
     body = fg.getConfig() + "\n\n---Results---\n" + fg.getResults()
+    
+    times = []
+    icounts = []
+    dcounts = []
+    ucounts = []
+    # Load the counts from the file
+    with open(countsPath, "r") as countsFile:
+        # Skip header
+        countsFile.readline()
+        # Parse files
+        for line in countsFile:
+            parts = line.split(",")
+            times.append(parts[0])
+            # parts[1] shows total number generated (dc+uc)
+            icounts.append(parts[2])
+            dcounts.append(parts[3])
+            ucounts.append(parts[4])
+        
     plt.clf()
-    # Show the plot if some were generated
     ip, = plt.plot(times, icounts, label="Infeasible", color='red')
     dp, = plt.plot(times, dcounts, label="Duplicate", color='green')
     up, = plt.plot(times, ucounts, label="Unique", color="blue")
-    mp, = plt.plot(times, mcounts, label="Minimal", color="purple")
-    plt.legend(handles=[ip, dp, up, mp])
+    plt.legend(handles=[ip, dp, up])
     plt.xlabel("Time")
     plt.ylabel("EFM count")
     plt.savefig("Temp.png")
-    
     emailer.emailImage("Complete!", body, "Temp.png")
-    
-execfile("test/temp3.py")
