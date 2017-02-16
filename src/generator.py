@@ -124,7 +124,7 @@ Beta: {beta}""".format(model = self.model,
         
         # Get the unique efms sorted according to their value
         # Remove external reactions
-        efms = sorted([self._fluxToNames(e) - externalReactionIDs for e in self.uniqueEFMs])
+        efms = sorted([fluxToNames(e) - externalReactionIDs for e in self.uniqueEFMs])
         
         minimalEFMs = [efms[0]]
         
@@ -145,37 +145,10 @@ Beta: {beta}""".format(model = self.model,
                 minimalEFMs.append(e)
                 
         return minimalEFMs
-    
-    def _checkAutoStop(self):
-        vc = len(self.uniqueEFMs)
-        if self._autoStopRatio > 0 and vc > self._autoStopMin:
-            ic = self.infeasibleCount
-            
-            if ic > self._autoStopRatio * vc:
-                self.stop("Auto stop: infeasible-to-unique ratio exceeds limit")
-        
-    def _runExtra(self, flux, excludeVal, **kwargs):
-        startWait = time.time()
-        self._extra(flux, excludeVal, **kwargs)
-        self._waitTime += time.time() - startWait
-        
-    def _runInfeasibleExtra(self, newest, excludeSet, **kwargs):
-        startWait = time.time()
-        self._infeasibleExtra(newest, excludeSet, **kwargs)
-        self._waitTime += time.time() - startWait
         
     def getTimeDelta(self):
         now = time.time()
         return now - self._startTime - self._waitTime
-    
-    def _findEFM(self, exclude):
-        solveStart = time.time()
-        ret = models.findEFM(self.model, self.include, exclude, 0)
-        self.solveTime += (time.time() - solveStart)
-        return ret
-    
-    def _fluxToNames(self, flux):
-        return set(flux.keys())
     
     def _feedback(self, string):
         if self._verboseOutput:
@@ -282,12 +255,38 @@ Generated:
         print("                                                      ", end="\r")
         
     def _genAll(self):
+        def findEFM(exclude):
+            solveStart = time.time()
+            ret = models.findEFM(self.model, self.include, exclude, 0)
+            self.solveTime += (time.time() - solveStart)
+            return ret
+        
+        def fluxToNames(flux):
+            return set(flux.keys())
+        
+        def checkAutoStop():
+            vc = len(self.uniqueEFMs)
+            if self._autoStopRatio > 0 and vc > self._autoStopMin:
+                ic = self.infeasibleCount                
+                if ic > self._autoStopRatio * vc:
+                    self.stop("Auto stop: infeasible-to-unique ratio exceeds limit")
+                
+        def runExtra(flux, excludeVal, **kwargs):
+            startWait = time.time()
+            self._extra(flux, excludeVal, **kwargs)
+            self._waitTime += time.time() - startWait
+            
+        def runInfeasibleExtra(newest, excludeSet, **kwargs):
+            startWait = time.time()
+            self._infeasibleExtra(newest, excludeSet, **kwargs)
+            self._waitTime += time.time() - startWait
+    
         if self._countDumpFile is not None and self._countDumpFile.closed:
             self.output("Count dump file unavailable")
             self._countDumpFile = None
             
         # Set up initial values
-        flux  = self._findEFM(self.exclude)
+        flux  = findEFM(self.exclude)
         exclude = self.exclude
         self.efmsGenerated = [] # List of EFMs generated
         self.uniqueEFMs = [] # List of unique EFMs
@@ -312,10 +311,10 @@ Generated:
         # Initialise
         if flux  is not None:
             self.efmsGenerated.append(flux)
-            fluxNames = self._fluxToNames(flux)
+            fluxNames = fluxToNames(flux)
             efmsGeneratedNames.append(fluxNames)
             # Do anything extra that has been specified by the user
-            self._runExtra(flux , exclude, newest=self.startReaction)
+            runExtra(flux , exclude, newest=self.startReaction)
             knockOutAble = [r for r in fluxNames if r not in self.include and r not in exclude]
             efmsToExplore = [(r, exclude) for r in knockOutAble]
             
@@ -331,7 +330,7 @@ Generated:
             if self._maxTime > 0 and time.time() - self._startTime >= self._maxTime:
                 self.stop("Max time reached")
                 break
-            self._checkAutoStop()
+            checkAutoStop()
             if self._breakLoop:
                 break
             
@@ -349,7 +348,7 @@ Generated:
             testedExclusions.append(nextExclude)
                 
             self._feedback("Trying exclude set " + str(nextExclude))
-            flux = self._findEFM(nextExclude)
+            flux = findEFM(nextExclude)
             self._feedback("Success: " + str(flux is not None))
             
             # Check for user input to pause or give feedback
@@ -372,7 +371,7 @@ Generated:
                 # Infeasible model
                 self.infeasibleCount += 1
                 self._feedback("\tInfeasible")
-                self._infeasibleExtra(nextReac, nextExclude)
+                runInfeasibleExtra(nextReac, nextExclude)
                 if nextReaction not in reacCounts:
                     reacCounts[nextReaction] = {}
                     reacCounts[nextReaction]["f"] = 0
@@ -382,9 +381,9 @@ Generated:
                     reacCounts[nextReaction]["i"] += 1
                 reacScores[nextReaction] = thisScore(nextReaction)
                 # Check auto stop
-                self._checkAutoStop()
+                checkAutoStop()
             else:
-                efmReactionsSet = self._fluxToNames(flux)
+                efmReactionsSet = fluxToNames(flux)
                 self._feedback("\tFlux generated " + str(efmReactionsSet))
                 self.efmsGenerated.append(flux)
                 # Feasible model
@@ -418,7 +417,7 @@ Generated:
                     efmsToExplore += [(r, nextExclude) for r in knockOutAble]
                     
                 # Do anything extra that has been specified by the user
-                self._runExtra(flux, nextExclude, newest=r)
+                runExtra(flux, nextExclude, newest=r)
             
             
             # Dump counts if necessary
@@ -428,6 +427,7 @@ Generated:
                                                      ic=self.infeasibleCount,
                                                      dc=self.duplicateCount,
                                                      uc=len(self.uniqueEFMs)))
+            self.printProgress()
                 
         self.timeTaken = self.getTimeDelta()
         self.printResults()

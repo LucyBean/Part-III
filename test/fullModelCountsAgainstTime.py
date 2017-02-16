@@ -23,7 +23,7 @@ fg = FluxGenerator(model, startReaction, include, initialExclude)
 #fg.useAutoStop(ratio=2)
 #fg.setMaxTime(3600)
 fg.disableManualStop()
-fg.setMaxCount(400)
+fg.setMaxCount(800)
 fg.removeDuplicates()
 countsPath = fg.dumpCountsToFile()
 fg.alpha = 2.6
