@@ -51,3 +51,4 @@ gurobi.log
 test/temp*.py
 visualisation/
 temp/
+dumps/
