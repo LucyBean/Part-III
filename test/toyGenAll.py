@@ -7,14 +7,8 @@ startReaction = model.reactions.get_by_id("EX_G6P")
 include = {startReaction.id: models.FORWARD}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
-
-print "Use manual input? (y/n)",
-if (raw_input() == "y"):
-    fg.useManualInput()
-    
-print "Max number to generate: (enter -1 for no limit)",
-maxCount = int(raw_input())
-if maxCount > 0:
-    fg.setMaxCount(maxCount)
-    
-fg.genAll()
+fg.dumpCountsToFile()
+fg.disableManualStop()
+fg.alpha = 2.6
+fg.beta = 2.7
+fg.genAll(1)
