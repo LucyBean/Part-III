@@ -113,7 +113,7 @@ Beta: {beta}""".format(model = self.model,
         """ Stops the FluxGenerator at the next iteration of the loop."""
         if reason is not None:
             self._stopReason = reason
-        self._breakLoop = True
+        self._stopping = True
 
     
     def getMinimalEFMs(self):
@@ -187,26 +187,17 @@ Generated:
     def pickNext(self, efmsToExplore, reacScores):
         """Given a list of (nextReaction, exclude) tuples, picks the next reaction
         
-        Reassign this to change the search strategy. By default, picks a random reaction weighted
-        by score.
-        
-        Note: score was calculated when this tuple was added to the list and may not necessarily
-        be the same as that reaction's current score
+        Reassign this to change the search strategy. By default, picks the highest scoring reaction
         
         Return: index of the next tuple to use"""
-        def getScore(efm):
-            nextReaction = efm[0]
+        def getScore(nextReaction):
             if nextReaction in reacScores:
                 return reacScores[nextReaction]
             else:
-                return 1
-        scores = np.array([getScore(e) for e in efmsToExplore])
-        scores = np.array(scores)
-        totScore = float(np.sum(scores))
-        relScores = scores / totScore
-        rand = random.uniform(0,1)
-        r = np.sum(np.cumsum(relScores) < rand)
-        return r
+                return 20
+        nextReacs = [efm[0] for efm in efmsToExplore]
+        max_i = max(range(len(nextReacs)), key = lambda k: getScore(nextReacs[k]))
+        return max_i
     
     def score(self, nextReaction, reacCounts):
         """Calculates the score of a reaction given the reacCounts
@@ -238,9 +229,9 @@ Generated:
         
         return (path)
             
-    def genAll(self, num_threads=1):
+    def genAll(self, num_slaves=1):
         self.output("Finding EFMs. Push ESC to quit.")
-        genThread = threading.Thread(target = lambda: self._genAll())
+        genThread = threading.Thread(target = self._genAll, args=(num_slaves,))
         genThread.start()
         a = None
         # Break loop if the escape key is pressed
@@ -254,12 +245,30 @@ Generated:
         genThread.join()
         print("                                                      ", end="\r")
         
-    def _genAll(self):
-        def findEFM(exclude):
-            solveStart = time.time()
-            ret = models.findEFM(self.model, self.include, exclude, 0)
-            self.solveTime += (time.time() - solveStart)
-            return ret
+    def _genAll(self, num_slaves):
+        class Slave:
+            def __init__(self, model, include):
+                self.result = None
+                self.thread = None
+                self.model = model
+                self.include = include
+                    
+            def run(self, nextReaction, excludeSet):
+                self.result = None
+                def findEFM(excludeSet):
+                    flux = models.findEFM(self.model, self.include, excludeSet, 0)
+                    # Return as a tuple to distinguish between not having a result and
+                    # not finding an answer
+                    self.result = (nextReaction, excludeSet, flux)
+                    
+                self.thread = threading.Thread(target = findEFM, args=(excludeSet,))
+                self.thread.start()
+                
+            def isAlive(self):
+                return self.thread is not None and self.thread.isAlive()
+            
+            def hasResult(self):
+                return self.result is not None
         
         def fluxToNames(flux):
             return set(flux.keys())
@@ -285,9 +294,18 @@ Generated:
             self.output("Count dump file unavailable")
             self._countDumpFile = None
             
+        # Initialise slaves
+        slaves = []
+        for _ in range(num_slaves):
+            slaves.append(Slave(self.model, self.include))
+            
         # Set up initial values
-        flux  = findEFM(self.exclude)
-        exclude = self.exclude
+        s0 = slaves[0]
+        s0.run(self.include.keys()[0], self.exclude)
+        # Wait for slave to finish
+        while s0.isAlive():
+            pass
+        flux = s0.result[2]
         self.efmsGenerated = [] # List of EFMs generated
         self.uniqueEFMs = [] # List of unique EFMs
         self.infeasibleCount = 0 # Count of infeasible EFMs tried
@@ -295,7 +313,7 @@ Generated:
         self.timeTaken = 0
         self._startTime = time.time()
         self._waitTime = 0
-        self._breakLoop = False
+        self._stopping = False
         
         # efmsToExplore consists of
         # (reactionToAdd, score, prevExcludeSet)
@@ -309,47 +327,53 @@ Generated:
             return self.score(r, reacCounts)
         
         # Initialise
-        if flux  is not None:
+        if flux is not None:
             self.efmsGenerated.append(flux)
             fluxNames = fluxToNames(flux)
             efmsGeneratedNames.append(fluxNames)
             # Do anything extra that has been specified by the user
-            runExtra(flux , exclude, newest=self.startReaction)
-            knockOutAble = [r for r in fluxNames if r not in self.include and r not in exclude]
-            efmsToExplore = [(r, exclude) for r in knockOutAble]
+            runExtra(flux , self.exclude, newest=self.startReaction)
+            knockOutAble = [r for r in fluxNames if r not in self.include and r not in self.exclude]
+            efmsToExplore = [(r, self.exclude) for r in knockOutAble]
             
+        activeSlaves = list(slaves)
+        asi = 0 # active slave index
         testedExclusions = [self.exclude]
-        while not self._breakLoop:
+        while len(activeSlaves) > 0:
+            # Check criteria to finish early
             if len(efmsToExplore) == 0: # No EFMs left to explore
                 self.stop("Explored all EFMs")
-                break
             if self._maxCount > 0 and len(self.efmsGenerated) >= self._maxCount: # Reached max count
                 self.stop("Generated max number of EFMs")
-                break
             # Check whether max time has been exceeded
             if self._maxTime > 0 and time.time() - self._startTime >= self._maxTime:
                 self.stop("Max time reached")
-                break
             checkAutoStop()
-            if self._breakLoop:
-                break
             
-            r = self.pickNext(efmsToExplore, reacScores)
-            nextReac = efmsToExplore[r]
-            efmsToExplore = efmsToExplore[:r] + efmsToExplore[r+1:] # Remove rth element from list
+            nextSlave = activeSlaves[asi]
+            result = None
             
-            nextReaction = nextReac[0]
-            prevExclude = nextReac[1]
-            nextExclude = prevExclude | set([nextReaction])
-            
-            if nextExclude in testedExclusions:
-                self._feedback("Duplicate exclusion set " + str(nextExclude))
-                continue # Skip this exclusion set and try next
-            testedExclusions.append(nextExclude)
-                
-            self._feedback("Trying exclude set " + str(nextExclude))
-            flux = findEFM(nextExclude)
-            self._feedback("Success: " + str(flux is not None))
+            if nextSlave.hasResult():
+                # Get the result
+                result = nextSlave.result
+            if not nextSlave.isAlive():
+                if self._stopping:
+                    # If the FluxGenerator is stopping then stop this thread
+                    activeSlaves.remove(nextSlave)
+                else:
+                    # Otherwise assign another reaction
+                    r = self.pickNext(efmsToExplore, reacScores)
+                    nextReac = efmsToExplore[r]
+                    efmsToExplore = efmsToExplore[:r] + efmsToExplore[r+1:] # Remove rth element from list
+                    nextReaction = nextReac[0]
+                    prevExclude = nextReac[1]
+                    nextExclude = prevExclude | set([nextReaction])
+                    
+                    if nextExclude in testedExclusions:
+                        continue
+                    testedExclusions.append(nextExclude)
+                    self._feedback("Processing exclude set " + str(nextExclude))
+                    nextSlave.run(nextReaction, nextExclude)
             
             # Check for user input to pause or give feedback
             if self._useManual:
@@ -366,59 +390,63 @@ Generated:
                     self.output("Generated" + str(self.infeasibleCount) + "infeasible EFMs")
                 self._waitTime += time.time() - startWait
                 
-            # Modifying FluxGenerator state in the next part so lock required
-            if flux is None:
-                # Infeasible model
-                self.infeasibleCount += 1
-                self._feedback("\tInfeasible")
-                runInfeasibleExtra(nextReac, nextExclude)
-                if nextReaction not in reacCounts:
-                    reacCounts[nextReaction] = {}
-                    reacCounts[nextReaction]["f"] = 0
-                    reacCounts[nextReaction]["u"] = 0
-                    reacCounts[nextReaction]["i"] = 1
+            # If a result was received
+            if result is not None:
+                (nextReaction, nextExclude, flux) = result
+                if flux is None:
+                    # Infeasible model
+                    self.infeasibleCount += 1
+                    self._feedback("\tInfeasible")
+                    runInfeasibleExtra(nextReaction, nextExclude)
+                    if nextReaction not in reacCounts:
+                        reacCounts[nextReaction] = {}
+                        reacCounts[nextReaction]["f"] = 0
+                        reacCounts[nextReaction]["u"] = 0
+                        reacCounts[nextReaction]["i"] = 1
+                    else:
+                        reacCounts[nextReaction]["i"] += 1
+                    reacScores[nextReaction] = thisScore(nextReaction)
+                    # Check auto stop
+                    checkAutoStop()
                 else:
-                    reacCounts[nextReaction]["i"] += 1
-                reacScores[nextReaction] = thisScore(nextReaction)
-                # Check auto stop
-                checkAutoStop()
-            else:
-                efmReactionsSet = fluxToNames(flux)
-                self._feedback("\tFlux generated " + str(efmReactionsSet))
-                self.efmsGenerated.append(flux)
-                # Feasible model
-                # Check if this has been generated before
-                unique = True
-                if efmReactionsSet in efmsGeneratedNames:
-                    self._feedback("\tDuplicate flux")
-                    self.duplicateCount += 1
-                    unique = False
-                else:
-                    # Add to unique list
-                    self.uniqueEFMs.append(flux)
-                    efmsGeneratedNames.append(efmReactionsSet)
-                    
-                # get score
-                if nextReaction not in reacCounts:
-                    reacCounts[nextReaction] = {}
-                    reacCounts[nextReaction]["f"] = 1
-                    reacCounts[nextReaction]["u"] = 0
-                    reacCounts[nextReaction]["i"] = 0
-                else:
-                    reacCounts[nextReaction]["f"] += 1
-                if unique:
-                    reacCounts[nextReaction]["u"] += 1
-                reacScores[nextReaction] = thisScore(nextReaction)
-                    
-                # If this generated a new flux
-                if not self._removeDuplicates or unique:
-                    # Find all possible reactions that could be knocked out
-                    knockOutAble = [r for r in fluxNames if r not in self.include and r not in exclude]
-                    efmsToExplore += [(r, nextExclude) for r in knockOutAble]
-                    
-                # Do anything extra that has been specified by the user
-                runExtra(flux, nextExclude, newest=r)
-            
+                    efmReactionsSet = fluxToNames(flux)
+                    self._feedback("\tFlux generated " + str(efmReactionsSet))
+                    self.efmsGenerated.append(flux)
+                    # Feasible model
+                    # Check if this has been generated before
+                    unique = True
+                    if efmReactionsSet in efmsGeneratedNames:
+                        self._feedback("\tDuplicate flux")
+                        self.duplicateCount += 1
+                        unique = False
+                    else:
+                        # Add to unique list
+                        self.uniqueEFMs.append(flux)
+                        efmsGeneratedNames.append(efmReactionsSet)
+                        
+                    # get score
+                    if nextReaction not in reacCounts:
+                        reacCounts[nextReaction] = {}
+                        reacCounts[nextReaction]["f"] = 1
+                        reacCounts[nextReaction]["u"] = 0
+                        reacCounts[nextReaction]["i"] = 0
+                    else:
+                        reacCounts[nextReaction]["f"] += 1
+                    if unique:
+                        reacCounts[nextReaction]["u"] += 1
+                    reacScores[nextReaction] = thisScore(nextReaction)
+                        
+                    # If this generated a new flux
+                    if not self._removeDuplicates or unique:
+                        # Find all possible reactions that could be knocked out
+                        knockOutAble = [r for r in fluxNames if r not in self.include and r not in nextExclude]
+                        efmsToExplore += [(r, nextExclude) for r in knockOutAble]
+                        
+                    # Do anything extra that has been specified by the user
+                    runExtra(flux, nextExclude, newest=nextReaction)
+                
+            if len(activeSlaves) > 0:
+                asi = (asi + 1) % len(activeSlaves)
             
             # Dump counts if necessary
             if self._countDumpFile is not None:
@@ -434,6 +462,9 @@ Generated:
         putch("\n")
         if self._countDumpFile is not None:
             self._countDumpFile.close()
+            
+        for s in slaves:
+            s.thread.join()
 
         
     def writeResults(self, fileName=None):

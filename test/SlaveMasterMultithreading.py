@@ -30,10 +30,12 @@ class Slave:
     def hasResult(self):
         return self.result is not None
     
+# Create slaves
 slaves = []
 for i in range(5):
     slaves.append(Slave(i))
     
+
 activeSlaves = list(slaves)
 thingsToDo = range(10)
 si = 0
