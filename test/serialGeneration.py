@@ -128,8 +128,8 @@ Generated:
 							 infs = infeasibleCount)
 	return s
 		
-def printResults(self):
-	self.output(self.getResults())
+def printResults():
+	output(getResults())
 
 def genNextExcludeSets(exclude, flux):
 	"""Produces all other exclude sets to test from this flux"""

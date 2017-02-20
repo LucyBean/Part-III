@@ -17,7 +17,7 @@ fg.beta = 6.6
 fg.gamma = 10
 fg.removeDuplicates()
 
-fg.genAll(1)
+fg.genAll()
  
 body = fg.getConfig() + "\n\n---Results---\n" + fg.getResults()
  

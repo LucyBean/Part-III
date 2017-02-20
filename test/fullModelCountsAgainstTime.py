@@ -11,7 +11,8 @@ model = cobra.io.read_sbml_model("MODEL1108160000.xml")
 #randID = random.randrange(0, len(model.reactions))
 #startReaction = model.reactions[randID]
 #startReaction = model.reactions.get_by_id("ARGSS")
-startReaction = model.reactions.get_by_id("FACOAL161t2pp")
+#startReaction = model.reactions.get_by_id("FACOAL161t2pp")
+startReaction = model.reactions.get_by_id("Ec_biomass_iJO1366_WT_53p95M")
 
 
 print "Including reaction", startReaction.id

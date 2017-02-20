@@ -1,16 +1,16 @@
 from mpi4py import MPI
 import models
-import cobra.test
+import cobra
 import time
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-batch_size = 5
+batch_size = 1
 
 
-model = cobra.test.create_test_model("textbook")
-startReaction = "EX_glc__D_e"
+model = cobra.io.read_sbml_model("MODEL1108160000.xml")
+startReaction = "FACOAL161t2pp"
 include = {startReaction: models.REVERSE}
 initialExclude = set([])
 	
@@ -33,7 +33,7 @@ start: {}""".format(size-1, batch_size, model, startReaction)
 	duplicateCount = 0
 
 	maxAttempts = 1000
-	maxTime = -1
+	maxTime = 30
 
 	results = []
 	resultsByNames = []
@@ -281,3 +281,4 @@ else:
 			data = {"from":rank, "type":"res", "res":results}
 			comm.send(data, dest=0)
 		
+print rank, "has finished"
