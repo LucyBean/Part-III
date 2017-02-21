@@ -7,14 +7,14 @@ Created on Jan 12, 2017
 from __future__ import print_function
 from src import models
 import time
-from msvcrt import getch, putch
+from msvcrt import getch
 import json
 import datetime
 import threading
-import cobra
 
 class FluxGenerator:
     def __init__(self, model, startReaction, include, initialExclude):
+        self.startDate = datetime.datetime.now()
         self.model = model
         self.reactions = model.reactions
         self.startReaction = startReaction
@@ -32,14 +32,20 @@ class FluxGenerator:
         self._manualStop = True
         self._stopReason = None
         self._countDumpFile = None
+        self._toTryDumpPath = ("dumps/" + self.startDate.strftime("%Y-%m-%d %H%M%S")
+                + (" {model!s} {startReaction!s} toTry dump.json"
+                                    .format(model = self.model,
+                                            startReaction = self.startReaction)))
         self.alpha = 2.8
         self.beta = 2.9
         self.gamma = 4
+        self.numberOfDumps = 0
+        self._dumpThreshold = 100000
         
         self._reset()
         
     def _reset(self):
-         # Output
+        # Output
         self.infeasibleCount = 0 # Count of infeasible EFMs tried
         self.duplicateCount = 0 # Count of duplicate EFMs generated
         self.timeTaken = 0
@@ -190,11 +196,12 @@ Generated:
         
     def printProgress(self):
         if (not self._verboseOutput and not self._useManual):
-            s = ("Time: {:6.2f} Unique: {:7} Duplicate: {:7} Infeasible: {:7}"
+            s = ("Time: {:6.2f} Unique: {:7} Duplicate: {:7} Infeasible: {:7} toTry: {:7}"
                     .format(time.time() - self._startTime,
                     len(self.uniqueEFMs),
                     self.duplicateCount,
-                    self.infeasibleCount))
+                    self.infeasibleCount,
+                    self.toTryNum))
             print(s, end="\r")
             
     def pickNext(self):
@@ -205,30 +212,26 @@ Generated:
                 return self.reacScores[nextReaction]
             else:
                 # Arbitrary default
-                return 20
+                return 1
         
         # Sort all the next possible reactions by score
-        nextReacs = sorted(self.toTry.keys(), key = lambda k: getScore(k))
-        # Only keep those that actually have exclude sets left to try
-        nextReacs = [nr for nr in nextReacs if len(self.toTry[nr]) > 0]
+        nextReacs = sorted(self.toTry.keys(), key = lambda k: getScore(k), reverse=True)
         i = 0
         # Find the next exclude set for this reaction that has not been tried
         while self.toTryNum > 0:
-            while len(self.toTry[nextReacs[i]]) == 0:
-                # Find first non empty
-                i += 1
-                if i == len(self.toTry):
-                    break
-            if i == len(self.toTry):
-                assert self.toTryNum == 0
-                break
-            excludeSets = self.toTry[nextReacs[i]]
+            nr = nextReacs[i]
+            excludeSets = self.toTry[nr]
+            assert len(excludeSets) > 0
             es = excludeSets[0]
-            excludeSets = self.toTry[nextReacs[i]] = excludeSets[1:]
+            excludeSets = self.toTry[nr] = excludeSets[1:]
             self.toTryNum -= 1
-            if es not in self.testedExclusions:
-                return nextReacs[i], es
+            # Remove this key if no exclude sets left
+            if len(self.toTry[nr]) == 0:
+                self.toTry.pop(nr)
+                i += 1
             
+            if es not in self.testedExclusions:
+                return nr, es
                         
     def addToTryList(self, reaction, exclude):
         if reaction not in self.toTry:
@@ -247,6 +250,9 @@ Generated:
         dc = self.reacCounts[nextReaction]["d"]
         ic = self.reacCounts[nextReaction]["i"]
         
+        if (uc+dc+ic) < 4:
+            return 1
+        
         return float(uc+1)**self.alpha / (dc*self.gamma +ic+1)**self.beta
         
     def dumpCountsToFile(self, fileName=None):
@@ -254,7 +260,7 @@ Generated:
         
         Returns the name of the file so it can be opened later"""
         if fileName is None:
-            date = datetime.datetime.now().strftime("%Y-%m-%d %H%M%S")
+            date = self.startDate.strftime("%Y-%m-%d %H%M%S")
             fileName = date + " {model!s} {startReaction!s} counts.csv".format(model = self.model,
                                                                     startReaction = self.startReaction)
         path = "dumps/" + fileName
@@ -271,7 +277,7 @@ Generated:
         genThread.start()
         a = None
         # Break loop if the escape key is pressed
-        if self._manualStop:
+        if self._manualStop and not self._useManual:
             while genThread.isAlive():
                 a = getch()
                 if ord(a) == 27: # Escape key
@@ -279,7 +285,7 @@ Generated:
                     break
         
         genThread.join()
-        print("                                                      ", end="\r")
+        print(" "*80, end="\r")
         
     def _genAll(self):
             
@@ -312,6 +318,8 @@ Generated:
             self._waitTime += time.time() - startWait
         
         def addCount(name, count):
+            if name in self.include:
+                return
             if name not in self.reacCounts:
                 self.reacCounts[name] = {}
                 self.reacCounts[name]["d"] = 0
@@ -359,6 +367,42 @@ Generated:
             # Process this result
             if unique or not self._removeDuplicates:
                 genNextExcludeSets(exclude, flux)
+                
+            if self.toTryNum > 1000000:
+                dumpToTry()
+                pass
+                
+        def dumpToTry():
+            """Dumps 1/2 of the toTry dict to disk"""
+            oldToTryNum = self.toTryNum
+            # Find all candidate keys to dump
+            badKeys = [k for k in self.toTry.keys() if self.score(k) < 1]
+            badKeys = sorted(badKeys, key = lambda k: self.score(k))
+            toDump = {}
+            
+            for bk in badKeys:
+                es = self.toTry[bk]
+                if self.toTryNum - len(es) < oldToTryNum/2:
+                    # Resulting dict would be too short
+                    break
+                # Move from toTry to toDump
+                toDump[bk] = [list(e) for e in es]
+                self.toTryNum -= len(es)
+                del self.toTry[bk]
+                del es
+                
+            self._dumpThreshold = self.toTryNum + oldToTryNum/2
+            
+                
+            print("\nDumped {} keys".format(oldToTryNum - self.toTryNum))
+            print("New threshold {}".format(self._dumpThreshold))
+                
+            s = json.dumps(toDump)
+            with open(self._toTryDumpPath, "a") as f:
+                f.write(s)
+                f.write("\n")
+                
+            self.numberOfDumps += 1
                         
         # Set up variables
         if self._countDumpFile is not None and self._countDumpFile.closed:
@@ -389,6 +433,7 @@ Generated:
             toTry = self.pickNext()
             assert toTry is not None
             (nextReaction, nexclude) = toTry
+            feedback("Trying {}".format(toTry))
             flux = findSolution(nexclude)
             processResult(flux, nextReaction, nexclude)
             
@@ -400,17 +445,27 @@ Generated:
                     self.stop("User input")
                     break
                 if userInput == "e":
-                    self.output(self.efmsGenerated)
+                    self.output(self.uniqueEFMs)
                 if userInput == "c":
-                    self.output("Generated" + str(len(self.efmsGenerated)))
-                    self.output("Generated" + str(self.duplicateCount) + "duplicate EFMs") 
-                    self.output("Generated" + str(self.infeasibleCount) + "infeasible EFMs")
+                    for rs in self.reacScores:
+                        rc = "None"
+                        if rs in self.reacCounts:
+                            rc = self.reacCounts[rs]
+                        es = 0
+                        if rs in self.toTry:
+                            es = len(self.toTry[rs])
+                        self.output("""{reaction}
+    Reac counts: {counts}
+    Score: {score}
+    Exclude sets to try: {es}""".format(reaction=rs,
+                                         counts = rc,
+                                         score = self.score(rs),
+                                         es = es))
                 self._waitTime += time.time() - startWait
                 
             # Dump counts if necessary
             if self._countDumpFile is not None:
-                self._countDumpFile.write("{t},{tc},{ic},{dc},{uc}\n".format(t=self.getTimeDelta(),
-                                                     tc=len(self.efmsGenerated),
+                self._countDumpFile.write("{t},{ic},{dc},{uc}\n".format(t=self.getTimeDelta(),
                                                      ic=self.infeasibleCount,
                                                      dc=self.duplicateCount,
                                                      uc=len(self.uniqueEFMs)))
@@ -418,7 +473,6 @@ Generated:
                 
         self.timeTaken = self.getTimeDelta()
         self.printResults()
-        putch("\n")
         if self._countDumpFile is not None:
             self._countDumpFile.close()
         

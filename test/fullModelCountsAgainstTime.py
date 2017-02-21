@@ -23,17 +23,19 @@ initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
 #fg.useAutoStop(ratio=2)
 #fg.setMaxTime(3600)
-fg.disableManualStop()
-fg.setMaxCount(500)
+#fg.verboseOutput()
+#fg.useManualInput()
+#fg.disableManualStop()
+#fg.setMaxCount(500)
 fg.removeDuplicates()
 countsPath = fg.dumpCountsToFile()
-fg.alpha = 6.4
-fg.beta = 6.6
-fg.gamma = 10
+fg.alpha = 2.1
+fg.beta = 2.2
+fg.gamma = 2
 
 fg.genAll()
 
-if len(fg.efmsGenerated) > 1:
+if len(fg.uniqueEFMs) > 1:
     body = fg.getConfig() + "\n\n---Results---\n" + fg.getResults()
     
     times = []
@@ -48,10 +50,9 @@ if len(fg.efmsGenerated) > 1:
         for line in countsFile:
             parts = line.split(",")
             times.append(parts[0])
-            # parts[1] shows total number generated (dc+uc)
-            icounts.append(parts[2])
-            dcounts.append(parts[3])
-            ucounts.append(parts[4])
+            icounts.append(parts[1])
+            dcounts.append(parts[2])
+            ucounts.append(parts[3])
         
     plt.clf()
     ip, = plt.plot(times, icounts, label="Infeasible", color='red')

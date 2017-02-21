@@ -5,16 +5,16 @@ from src import models, emailer
 
 # Generate some EFMs
 model = cobra.test.create_test_model("textbook")
-startReaction = model.reactions.get_by_id("EX_glc__D_e")
-include = {startReaction.id: models.REVERSE}
+startReaction = model.reactions.get_by_id("Biomass_Ecoli_core")
+include = {startReaction.id: models.FORWARD}
 initialExclude = []
 fg = FluxGenerator(model, startReaction, include, initialExclude)
 countsPath = fg.dumpCountsToFile()
-fg.disableManualStop()
-fg.setMaxCount(581)
-fg.alpha = 6.4
-fg.beta = 6.6
-fg.gamma = 10
+#fg.disableManualStop()
+#fg.setMaxCount(1000)
+fg.alpha = 2.1
+fg.beta = 2.2
+fg.gamma = 2
 fg.removeDuplicates()
 
 fg.genAll()
@@ -32,12 +32,11 @@ with open(countsPath, "r") as countsFile:
     # Parse files
     for line in countsFile:
         parts = line.split(",")
-        if len(parts) >= 5:
+        if len(parts) >= 4:
             times.append(parts[0])
-            # parts[1] shows total number generated (dc+uc)
-            icounts.append(parts[2])
-            dcounts.append(parts[3])
-            ucounts.append(parts[4])
+            icounts.append(parts[1])
+            dcounts.append(parts[2])
+            ucounts.append(parts[3])
      
 plt.clf()
 ip, = plt.plot(times, icounts, label="Infeasible", color='red')
