@@ -340,8 +340,9 @@ Generated:
             self.infeasibleCount += 1
             self.runInfeasibleExtra(nextReaction, exclude)
             self.feedback("\tInfeasible")
-            self.addCount(nextReaction, {"i":1})
-            self.reacScores[nextReaction] = self.score(nextReaction)
+            for r in exclude:
+                self.addCount(r, {"i":1})
+                self.reacScores[r] = self.score(r)
             return
         
         names = self.fluxToNames(flux)
@@ -350,17 +351,18 @@ Generated:
         if names in self.resultsByNames:
             # Duplicate result
             self.feedback("\tDuplicate")
-            self.addCount(nextReaction, {"d":1})
+            for r in exclude:
+                self.addCount(r, {"d":1})
+                self.reacScores[r] = self.score(r)
             self.duplicateCount += 1
             unique = False
         else:
             # New result
             self.uniqueEFMs.append(flux)
-            self.addCount(nextReaction, {"u":1})
+            for r in exclude:
+                self.addCount(r, {"u":1})
+                self.reacScores[r] = self.score(r)
             self.resultsByNames.append(names)
-            
-        # Update score
-        self.reacScores[nextReaction] = self.score(nextReaction)
             
         # Process this result
         if unique or not self._removeDuplicates:
