@@ -5,7 +5,7 @@ Created on Jan 12, 2017
 '''
 
 from __future__ import print_function
-from src import models
+import models
 import time
 from msvcrt import getch
 import json
@@ -223,6 +223,7 @@ Generated:
             nextReacs = [k for k in self.toTry if self.score(k) == 1]
             if len(nextReacs) == 0:
                 # Switch strategy
+                print("No neutral reactions left, switching strategy")
                 self._strategy = 1
             
         if self._strategy == 1:
@@ -397,8 +398,8 @@ Generated:
         if self.toTryNum > oldToTryNum * 0.75:
             self._dumpThreshold = self.toTryNum + oldToTryNum/2
             
-        print("\n\tDumped {} keys".format(oldToTryNum - self.toTryNum))
-        print("\tNew threshold {}".format(self._dumpThreshold))
+        print("\nDumped {} keys".format(oldToTryNum - self.toTryNum))
+        print("New threshold {}".format(self._dumpThreshold))
             
         s = json.dumps(toDump)
         with open(self._toTryDumpPath, "a") as f:
@@ -407,6 +408,7 @@ Generated:
             
         self.numberOfDumps += 1
         self._strategy = (self._strategy + 1) % 2
+        print("Using strategy {}".format(self._strategy))
                 
             
     def genAll(self):

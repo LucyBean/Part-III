@@ -1,0 +1,7 @@
+Rank: 0
+Time: 2017-02-22 23:14:22.503000
+Initialised
+Sent {'vals': [('GHMT2r', set(['GHMT2r'])), ('G6PDH2r',... to 1
+Sent {'vals': [('PRATPP', set(['PRATPP'])), ('ACACT3r',... to 2
+Sent {'vals': [('Htex', set(['Htex'])), ('DHDPRy', set(... to 3
+Sent {'vals': [('IMPC', set(['IMPC'])), ('PGCD', set(['... to 4
